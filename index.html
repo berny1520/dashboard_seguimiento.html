@@ -25,6 +25,51 @@
       margin: 15px auto 40px;
       padding: 0 10px;
     }
+
+    /* Barra de filtros */
+    .filters-bar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+      background: #fff;
+      padding: 10px 12px;
+      border-radius: 6px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      margin-bottom: 15px;
+      font-size: 13px;
+    }
+    .filters-bar label {
+      font-weight: bold;
+      margin-right: 4px;
+    }
+    .filters-bar input,
+    .filters-bar select {
+      padding: 4px 6px;
+      font-size: 13px;
+      border-radius: 4px;
+      border: 1px solid #ccc;
+    }
+    .filters-bar button {
+      padding: 5px 10px;
+      font-size: 13px;
+      border-radius: 4px;
+      border: none;
+      cursor: pointer;
+    }
+    .btn-primary {
+      background: #007bff;
+      color: #fff;
+    }
+    .btn-secondary {
+      background: #6c757d;
+      color: #fff;
+    }
+    .btn-pdf {
+      background: #dc3545;
+      color: #fff;
+    }
+
     .kpi-grid {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
@@ -87,6 +132,20 @@
     tr:nth-child(even) td {
       background: #fafafa;
     }
+
+    /* Versión para imprimir (PDF) */
+    @media print {
+      .filters-bar {
+        display: none;
+      }
+      button {
+        display: none;
+      }
+      header {
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
+    }
   </style>
 </head>
 <body>
@@ -109,6 +168,38 @@
 </header>
 
 <div class="container">
+
+  <!-- BARRA DE FILTROS -->
+  <div class="filters-bar">
+    <div>
+      <label for="filtro-rut">RUT:</label>
+      <input id="filtro-rut" type="text" placeholder="Ej: 12521561-0">
+      <button class="btn-primary" onclick="aplicarFiltros()">Buscar</button>
+    </div>
+
+    <div>
+      <label for="filtro-estado">Estado:</label>
+      <select id="filtro-estado" onchange="aplicarFiltros()">
+        <option value="TODOS">Todos</option>
+        <option value="CERRADO">Cerrado</option>
+        <option value="PROCESO">Proceso</option>
+        <option value="SIN RESPUESTA">Sin respuesta</option>
+      </select>
+    </div>
+
+    <div>
+      <label for="filtro-equipo">Equipo:</label>
+      <select id="filtro-equipo" onchange="aplicarFiltros()">
+        <option value="TODOS">Todos</option>
+        <!-- Se completa dinámicamente -->
+      </select>
+    </div>
+
+    <div style="margin-left:auto; display:flex; gap:8px;">
+      <button class="btn-secondary" onclick="limpiarFiltros()">Limpiar filtros</button>
+      <button class="btn-pdf" onclick="exportarPDF()">Exportar PDF</button>
+    </div>
+  </div>
 
   <!-- KPIs -->
   <div class="kpi-grid">
@@ -194,6 +285,9 @@
   const CSV_URL =
     "https://docs.google.com/spreadsheets/d/e/2PACX-1vSMDU7-l9lRW2zs5qXHCoIn33DXxwyfV9-TApzYTF0UNzyTCE6QxsPeUl_Y9K1JIMAoOdBeShtfviPj/pub?gid=1169506111&single=true&output=csv";
 
+  let registrosBase = [];
+  let registrosActuales = [];
+
   let chartConcepto, chartEstado, chartEquipo, chartFecha, chartEquipoOperadores;
 
   document.addEventListener("DOMContentLoaded", () => {
@@ -253,7 +347,7 @@
       const rows = parseCSV(text);
       if (!rows.length) return;
 
-      // Quitamos encabezados (primera fila) y cualquier fila cuya primera columna sea "RUT"
+      // Quitamos encabezados y filas donde la primera columna es "RUT"
       const dataRows = rows.filter((c, i) => {
         if (i === 0) return false;
         if (!c[0]) return false;
@@ -261,7 +355,7 @@
         return true;
       });
 
-      const registros = dataRows
+      registrosBase = dataRows
         .map(c => ({
           rut:        c[0] || "",
           nombre:     c[1] || "",
@@ -276,16 +370,70 @@
         }))
         .filter(r => r.concepto !== "" && (r.rut !== "" || r.nombre !== ""));
 
-      console.log("Registros cargados:", registros.length);
+      console.log("Registros cargados:", registrosBase.length);
 
-      actualizarKPIs(registros);
-      dibujarTabla(registros);
-      dibujarGraficos(registros);
+      poblarFiltroEquipos(registrosBase);
+      aplicarFiltros();
 
     } catch (err) {
       console.error("Error cargando datos:", err);
       alert("No se pudo leer la base desde Google Sheets.");
     }
+  }
+
+  function poblarFiltroEquipos(reg) {
+    const selectEquipo = document.getElementById("filtro-equipo");
+    // limpiar excepto "TODOS"
+    selectEquipo.innerHTML = '<option value="TODOS">Todos</option>';
+    const equipos = Array.from(new Set(reg.map(r => r.equipo || "Sin dato"))).sort();
+    equipos.forEach(eq => {
+      const opt = document.createElement("option");
+      opt.value = eq;
+      opt.textContent = eq;
+      selectEquipo.appendChild(opt);
+    });
+  }
+
+  function aplicarFiltros() {
+    if (!registrosBase.length) return;
+
+    const rutBusqueda = document.getElementById("filtro-rut").value.trim();
+    const estadoSel   = document.getElementById("filtro-estado").value;
+    const equipoSel   = document.getElementById("filtro-equipo").value;
+
+    let datos = registrosBase.slice();
+
+    if (rutBusqueda) {
+      const rutLower = rutBusqueda.toLowerCase();
+      datos = datos.filter(r =>
+        (r.rut || "").toLowerCase().includes(rutLower)
+      );
+    }
+
+    if (estadoSel !== "TODOS") {
+      datos = datos.filter(r => r.estado === estadoSel);
+    }
+
+    if (equipoSel !== "TODOS") {
+      datos = datos.filter(r => r.equipo === equipoSel);
+    }
+
+    registrosActuales = datos;
+
+    actualizarKPIs(registrosActuales);
+    dibujarTabla(registrosActuales);
+    dibujarGraficos(registrosActuales);
+  }
+
+  function limpiarFiltros() {
+    document.getElementById("filtro-rut").value = "";
+    document.getElementById("filtro-estado").value = "TODOS";
+    document.getElementById("filtro-equipo").value = "TODOS";
+    aplicarFiltros();
+  }
+
+  function exportarPDF() {
+    window.print();
   }
 
   function actualizarKPIs(reg) {
