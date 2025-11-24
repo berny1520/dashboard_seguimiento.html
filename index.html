@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>Dashboard Seguimiento Operadores</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: #f0f2f5;
+      color: #222;
+    }
+    header {
+      background: #222;
+      color: #fff;
+      padding: 15px 25px;
+    }
+    header h1 {
+      margin: 0;
+      font-size: 22px;
+    }
+    .container {
+      max-width: 1250px;
+      margin: 15px auto 40px;
+      padding: 0 10px;
+    }
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+    .kpi-card {
+      background: #fff;
+      border-radius: 6px;
+      padding: 12px 14px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+    .kpi-title {
+      font-size: 12px;
+      color: #666;
+      text-transform: uppercase;
+      margin-bottom: 4px;
+    }
+    .kpi-value {
+      font-size: 20px;
+      font-weight: bold;
+    }
+    .kpi-sub {
+      font-size: 11px;
+      color: #999;
+    }
+    .charts-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+      gap: 15px;
+    }
+    .chart-card {
+      background: #fff;
+      border-radius: 6px;
+      padding: 12px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+    .chart-card h3 {
+      margin: 0 0 10px;
+      font-size: 14px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 25px;
+      font-size: 12px;
+      background: #fff;
+      border-radius: 6px;
+      overflow: hidden;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+    th, td {
+      padding: 6px 8px;
+      border-bottom: 1px solid #eee;
+    }
+    th {
+      background: #f7f7f7;
+      text-align: left;
+    }
+    tr:nth-child(even) td {
+      background: #fafafa;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>Dashboard Seguimiento Operadores – Capacitación y Certificación</h1>
+</header>
+
+<div class="container">
+
+  <!-- KPIs -->
+  <div class="kpi-grid">
+    <div class="kpi-card">
+      <div class="kpi-title">Solicitudes registradas</div>
+      <div class="kpi-value" id="kpi-total-registros">0</div>
+      <div class="kpi-sub">Total filas con concepto</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-title">Operadores únicos</div>
+      <div class="kpi-value" id="kpi-operadores-unicos">0</div>
+      <div class="kpi-sub">Por RUT/NOMBREUSUARIO</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-title">Cantidad total</div>
+      <div class="kpi-value" id="kpi-cantidad-total">0</div>
+      <div class="kpi-sub">Suma de columna CANTIDAD</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-title">Cerrados</div>
+      <div class="kpi-value" id="kpi-cerrados">0</div>
+      <div class="kpi-sub" id="kpi-cerrados-pct">0%</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-title">En proceso</div>
+      <div class="kpi-value" id="kpi-proceso">0</div>
+      <div class="kpi-sub" id="kpi-proceso-pct">0%</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-title">Sin respuesta</div>
+      <div class="kpi-value" id="kpi-sin-respuesta">0</div>
+      <div class="kpi-sub" id="kpi-sin-respuesta-pct">0%</div>
+    </div>
+  </div>
+
+  <!-- Gráficos -->
+  <div class="charts-grid">
+    <div class="chart-card">
+      <h3>Cantidad por concepto</h3>
+      <canvas id="chartConcepto"></canvas>
+    </div>
+    <div class="chart-card">
+      <h3>Registros por estado</h3>
+      <canvas id="chartEstado"></canvas>
+    </div>
+    <div class="chart-card">
+      <h3>Cantidad por equipo</h3>
+      <canvas id="chartEquipo"></canvas>
+    </div>
+    <div class="chart-card">
+      <h3>Cantidad por fecha cierre</h3>
+      <canvas id="chartFecha"></canvas>
+    </div>
+  </div>
+
+  <!-- Tabla detalle (opcional) -->
+  <table id="tabla-detalle">
+    <thead>
+      <tr>
+        <th>RUT</th>
+        <th>Nombre</th>
+        <th>Contrato</th>
+        <th>Equipo</th>
+        <th>Solicitante</th>
+        <th>Responsable</th>
+        <th>Fecha cierre</th>
+        <th>Concepto</th>
+        <th>Cantidad</th>
+        <th>Estado</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+
+</div>
+
+<script>
+  // ========= CONFIGURA TU HOJA AQUÍ =========
+  const SHEET_ID   = "TU_ID_DE_HOJA_AQUÍ";   // <- reemplaza
+  const SHEET_NAME = "Hoja1";                // <- reemplaza con el nombre real de la pestaña
+  const QUERY      = encodeURIComponent("select *");
+  const SHEET_URL  =
+    `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?sheet=${SHEET_NAME}&tq=${QUERY}`;
+
+  let chartConcepto, chartEstado, chartEquipo, chartFecha;
+
+  document.addEventListener("DOMContentLoaded", () => {
+    cargarDatos();
+  });
+
+  async function cargarDatos() {
+    try {
+      const res  = await fetch(SHEET_URL);
+      const text = await res.text();
+      const json = JSON.parse(text.substring(47, text.length - 2));
+
+      // Ajusta los índices de columnas según tu Google Sheet:
+      // 0: RUT
+      // 1: NOMBRE
+      // 2: CONTRATO
+      // 3: EQUIPO
+      // 4: SOLICITANTE
+      // 5: RESPONSABLE
+      // 6: FECHACIERRE
+      // 7: CONCEPTO
+      // 8: CANTIDAD
+      // 9: ESTADO
+      // 10: SEGUIMIENTO
+      // 11: REGISTRO CHARLAS
+      // 12: DOCUMENTACIÓN
+      const registros = json.table.rows.map(r => ({
+        rut:        r.c[0]?.v ?? "",
+        nombre:     r.c[1]?.v ?? "",
+        contrato:   r.c[2]?.v ?? "",
+        equipo:     r.c[3]?.v ?? "",
+        solicitante:r.c[4]?.v ?? "",
+        responsable:r.c[5]?.v ?? "",
+        fecha:      r.c[6]?.v ?? "",
+        concepto:   r.c[7]?.v ?? "",
+        cantidad:   Number(r.c[8]?.v ?? 0),
+        estado:     (r.c[9]?.v ?? "").toUpperCase()
+      })).filter(r => r.concepto !== ""); // ignorar filas vacías
+
+      actualizarKPIs(registros);
+      dibujarTabla(registros);
+      dibujarGraficos(registros);
+
+    } catch (err) {
+      console.error("Error cargando datos:", err);
+      alert("No se pudo leer la base desde Google Sheets.");
+    }
+  }
+
+  function actualizarKPIs(reg) {
+    const total = reg.length;
+    const totalCantidad = reg.reduce((s, r) => s + (r.cantidad || 0), 0);
+
+    const setEstado = estado =>
+      reg.filter(r => r.estado === estado).length;
+
+    const cerrados      = setEstado("CERRADO");
+    const proceso       = setEstado("PROCESO");
+    const sinRespuesta  = setEstado("SIN RESPUESTA");
+
+    const operadoresUnicos = new Set(reg.map(r => r.rut || r.nombre)).size;
+
+    const pct = n => total ? ((n / total) * 100).toFixed(1) + "%" : "0%";
+
+    document.getElementById("kpi-total-registros").textContent   = total;
+    document.getElementById("kpi-cantidad-total").textContent    = totalCantidad;
+    document.getElementById("kpi-operadores-unicos").textContent = operadoresUnicos;
+
+    document.getElementById("kpi-cerrados").textContent          = cerrados;
+    document.getElementById("kpi-proceso").textContent           = proceso;
+    document.getElementById("kpi-sin-respuesta").textContent     = sinRespuesta;
+
+    document.getElementById("kpi-cerrados-pct").textContent      = pct(cerrados);
+    document.getElementById("kpi-proceso-pct").textContent       = pct(proceso);
+    document.getElementById("kpi-sin-respuesta-pct").textContent = pct(sinRespuesta);
+  }
+
+  function dibujarTabla(reg) {
+    const tbody = document.querySelector("#tabla-detalle tbody");
+    tbody.innerHTML = "";
+    reg.forEach(r => {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td>${r.rut}</td>
+        <td>${r.nombre}</td>
+        <td>${r.contrato}</td>
+        <td>${r.equipo}</td>
+        <td>${r.solicitante}</td>
+        <td>${r.responsable}</td>
+        <td>${r.fecha}</td>
+        <td>${r.concepto}</td>
+        <td>${r.cantidad}</td>
+        <td>${r.estado}</td>
+      `;
+      tbody.appendChild(tr);
+    });
+  }
+
+  function agrupar(reg, clave, usarCantidad = false) {
+    const map = {};
+    reg.forEach(r => {
+      const key = r[clave] || "Sin dato";
+      if (!map[key]) map[key] = 0;
+      map[key] += usarCantidad ? (r.cantidad || 0) : 1;
+    });
+    const labels = Object.keys(map);
+    const values = labels.map(l => map[l]);
+    return { labels, values };
+  }
+
+  function dibujarGraficos(reg) {
+    // Por concepto (suma cantidad)
+    const concepto = agrupar(reg, "concepto", true);
+    // Por estado (conteo)
+    const estado   = agrupar(reg, "estado", false);
+    // Por equipo (suma cantidad)
+    const equipo   = agrupar(reg, "equipo", true);
+    // Por fecha (suma cantidad)
+    const fecha    = agrupar(reg, "fecha", true);
+
+    const ctxConcepto = document.getElementById("chartConcepto").getContext("2d");
+    const ctxEstado   = document.getElementById("chartEstado").getContext("2d");
+    const ctxEquipo   = document.getElementById("chartEquipo").getContext("2d");
+    const ctxFecha    = document.getElementById("chartFecha").getContext("2d");
+
+    if (chartConcepto) chartConcepto.destroy();
+    if (chartEstado)   chartEstado.destroy();
+    if (chartEquipo)   chartEquipo.destroy();
+    if (chartFecha)    chartFecha.destroy();
+
+    chartConcepto = new Chart(ctxConcepto, {
+      type: "bar",
+      data: {
+        labels: concepto.labels,
+        datasets: [{ label: "Cantidad", data: concepto.values }]
+      }
+    });
+
+    chartEstado = new Chart(ctxEstado, {
+      type: "doughnut",
+      data: {
+        labels: estado.labels,
+        datasets: [{ data: estado.values }]
+      }
+    });
+
+    chartEquipo = new Chart(ctxEquipo, {
+      type: "bar",
+      data: {
+        labels: equipo.labels,
+        datasets: [{ label: "Cantidad", data: equipo.values }]
+      }
+    });
+
+    chartFecha = new Chart(ctxFecha, {
+      type: "line",
+      data: {
+        labels: fecha.labels,
+        datasets: [{ label: "Cantidad", data: fecha.values }]
+      }
+    });
+  }
+</script>
+
+</body>
+</html>
