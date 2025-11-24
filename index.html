@@ -91,7 +91,7 @@
 </head>
 <body>
 
-<!-- HEADER CON LOGO LOCAL Y AUTOR -->
+<!-- HEADER CON LOGO Y AUTOR -->
 <header>
   <div style="display:flex; align-items:center; gap:15px;">
     <!-- El archivo debe llamarse exactamente logo_Xtreme.png -->
@@ -187,32 +187,80 @@
 </div>
 
 <script>
-  // ========= URL DE LA HOJA PUBLICADA =========
-  // Versión "gviz" a partir de tu enlace publicado:
-  // https://docs.google.com/spreadsheets/d/e/.../pubhtml?gid=1169506111&single=true
-  // la cambiamos a:
-  const SHEET_URL =
-    "https://docs.google.com/spreadsheets/d/e/2PACX-1vSMDU7-l9lRW2zs5qXHCoIn33DXxwyfV9-TApzYTF0UNzyTCE6QxsPeUl_Y9K1JIMAoOdBeShtfviPj/gviz/tq?gid=1169506111&tq=select%20*";
+  // ========= URL CSV DE LA HOJA PUBLICADA =========
+  // A partir de tu enlace:
+  // https://docs.google.com/spreadsheets/d/e/2PACX-1vSMDU7.../pubhtml?gid=1169506111&single=true
+  // la versión CSV es:
+  const CSV_URL =
+    "https://docs.google.com/spreadsheets/d/e/2PACX-1vSMDU7-l9lRW2zs5qXHCoIn33DXxwyfV9-TApzYTF0UNzyTCE6QxsPeUl_Y9K1JIMAoOdBeShtfviPj/pub?gid=1169506111&single=true&output=csv";
 
   let chartConcepto, chartEstado, chartEquipo, chartFecha;
 
   document.addEventListener("DOMContentLoaded", () => {
-    console.log("SHEET_URL:", SHEET_URL);
     cargarDatos();
   });
 
+  // --- Pequeño parser de CSV que soporta comillas y comas dentro de los campos ---
+  function parseCSV(text) {
+    const rows = [];
+    let current = [];
+    let value = "";
+    let insideQuotes = false;
+
+    for (let i = 0; i < text.length; i++) {
+      const ch = text[i];
+      const next = text[i + 1];
+
+      if (insideQuotes) {
+        if (ch === '"' && next === '"') {
+          // comillas escapadas ""
+          value += '"';
+          i++;
+        } else if (ch === '"') {
+          insideQuotes = false;
+        } else {
+          value += ch;
+        }
+      } else {
+        if (ch === '"') {
+          insideQuotes = true;
+        } else if (ch === ",") {
+          current.push(value);
+          value = "";
+        } else if (ch === "\r") {
+          // ignorar
+        } else if (ch === "\n") {
+          current.push(value);
+          rows.push(current);
+          current = [];
+          value = "";
+        } else {
+          value += ch;
+        }
+      }
+    }
+    // último valor si no termina con \n
+    if (value.length > 0 || current.length > 0) {
+      current.push(value);
+      rows.push(current);
+    }
+    return rows;
+  }
+
   async function cargarDatos() {
     try {
-      const res  = await fetch(SHEET_URL);
+      const res  = await fetch(CSV_URL);
       const text = await res.text();
 
-      console.log("Respuesta cruda (primeros 200 caracteres):", text.slice(0, 200));
+      const rows = parseCSV(text);
+      if (!rows.length) return;
 
-      const json = JSON.parse(text.substring(47, text.length - 2));
+      // Primera fila = encabezados
+      const dataRows = rows.slice(1);
 
-      // Columnas (ajustadas a tu hoja):
+      // Asumimos estructura:
       // 0: RUT
-      // 1: NOMBREUSUARIO
+      // 1: NOMBRE (o NOMBREUSUARIO)
       // 2: CONTRATO
       // 3: EQUIPO
       // 4: SOLICITANTE
@@ -221,18 +269,25 @@
       // 7: CONCEPTO
       // 8: CANTIDAD
       // 9: ESTADO
-      const registros = json.table.rows.map(r => ({
-        rut:        r.c[0]?.v ?? "",
-        nombre:     r.c[1]?.v ?? "",
-        contrato:   r.c[2]?.v ?? "",
-        equipo:     r.c[3]?.v ?? "",
-        solicitante:r.c[4]?.v ?? "",
-        responsable:r.c[5]?.v ?? "",
-        fecha:      r.c[6]?.v ?? "",
-        concepto:   r.c[7]?.v ?? "",
-        cantidad:   Number(r.c[8]?.v ?? 0),
-        estado:     (r.c[9]?.v ?? "").toUpperCase()
-      })).filter(r => r.concepto !== "");
+      const registros = dataRows
+        .map(c => ({
+          rut:        c[0] || "",
+          nombre:     c[1] || "",
+          contrato:   c[2] || "",
+          equipo:     c[3] || "",
+          solicitante:c[4] || "",
+          responsable:c[5] || "",
+          fecha:      c[6] || "",
+          concepto:   c[7] || "",
+          cantidad:   Number(c[8] || 0),
+          estado:     (c[9] || "").toUpperCase()
+        }))
+        .filter(r => r.concepto !== "" && (r.rut !== "" || r.nombre !== ""));
+
+      console.log("Registros cargados:", registros.length);
+      if (!registros.length) {
+        console.warn("No se encontraron registros con concepto.");
+      }
 
       actualizarKPIs(registros);
       dibujarTabla(registros);
