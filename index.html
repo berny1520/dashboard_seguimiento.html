@@ -94,7 +94,6 @@
 <!-- HEADER CON LOGO Y AUTOR -->
 <header>
   <div style="display:flex; align-items:center; gap:15px;">
-    <!-- El archivo debe llamarse exactamente logo_Xtreme.png -->
     <img src="logo_Xtreme.png"
          alt="Xtreme Mining"
          style="height:55px;">
@@ -156,12 +155,16 @@
       <canvas id="chartEstado"></canvas>
     </div>
     <div class="chart-card">
-      <h3>Cantidad por equipo</h3>
+      <h3>Cantidad por equipo (unidades)</h3>
       <canvas id="chartEquipo"></canvas>
     </div>
     <div class="chart-card">
       <h3>Cantidad por fecha cierre</h3>
       <canvas id="chartFecha"></canvas>
+    </div>
+    <div class="chart-card">
+      <h3>Operadores únicos por equipo</h3>
+      <canvas id="chartEquipoOperadores"></canvas>
     </div>
   </div>
 
@@ -188,19 +191,16 @@
 
 <script>
   // ========= URL CSV DE LA HOJA PUBLICADA =========
-  // A partir de tu enlace:
-  // https://docs.google.com/spreadsheets/d/e/2PACX-1vSMDU7.../pubhtml?gid=1169506111&single=true
-  // la versión CSV es:
   const CSV_URL =
     "https://docs.google.com/spreadsheets/d/e/2PACX-1vSMDU7-l9lRW2zs5qXHCoIn33DXxwyfV9-TApzYTF0UNzyTCE6QxsPeUl_Y9K1JIMAoOdBeShtfviPj/pub?gid=1169506111&single=true&output=csv";
 
-  let chartConcepto, chartEstado, chartEquipo, chartFecha;
+  let chartConcepto, chartEstado, chartEquipo, chartFecha, chartEquipoOperadores;
 
   document.addEventListener("DOMContentLoaded", () => {
     cargarDatos();
   });
 
-  // --- Pequeño parser de CSV que soporta comillas y comas dentro de los campos ---
+  // --- Parser simple de CSV con comillas ---
   function parseCSV(text) {
     const rows = [];
     let current = [];
@@ -213,7 +213,6 @@
 
       if (insideQuotes) {
         if (ch === '"' && next === '"') {
-          // comillas escapadas ""
           value += '"';
           i++;
         } else if (ch === '"') {
@@ -228,7 +227,7 @@
           current.push(value);
           value = "";
         } else if (ch === "\r") {
-          // ignorar
+          // nada
         } else if (ch === "\n") {
           current.push(value);
           rows.push(current);
@@ -239,7 +238,6 @@
         }
       }
     }
-    // último valor si no termina con \n
     if (value.length > 0 || current.length > 0) {
       current.push(value);
       rows.push(current);
@@ -255,20 +253,14 @@
       const rows = parseCSV(text);
       if (!rows.length) return;
 
-      // Primera fila = encabezados
-      const dataRows = rows.slice(1);
+      // Quitamos encabezados (primera fila) y cualquier fila cuya primera columna sea "RUT"
+      const dataRows = rows.filter((c, i) => {
+        if (i === 0) return false;
+        if (!c[0]) return false;
+        if (c[0].toString().toUpperCase() === "RUT") return false;
+        return true;
+      });
 
-      // Asumimos estructura:
-      // 0: RUT
-      // 1: NOMBRE (o NOMBREUSUARIO)
-      // 2: CONTRATO
-      // 3: EQUIPO
-      // 4: SOLICITANTE
-      // 5: RESPONSABLE
-      // 6: FECHACIERRE
-      // 7: CONCEPTO
-      // 8: CANTIDAD
-      // 9: ESTADO
       const registros = dataRows
         .map(c => ({
           rut:        c[0] || "",
@@ -285,9 +277,6 @@
         .filter(r => r.concepto !== "" && (r.rut !== "" || r.nombre !== ""));
 
       console.log("Registros cargados:", registros.length);
-      if (!registros.length) {
-        console.warn("No se encontraron registros con concepto.");
-      }
 
       actualizarKPIs(registros);
       dibujarTabla(registros);
@@ -360,21 +349,37 @@
     return { labels, values };
   }
 
+  function agruparUnicos(reg, claveAgrupar, claveUnico) {
+    const map = {};
+    reg.forEach(r => {
+      const grupo = r[claveAgrupar] || "Sin dato";
+      const id    = r[claveUnico]   || "";
+      if (!map[grupo]) map[grupo] = new Set();
+      if (id) map[grupo].add(id);
+    });
+    const labels = Object.keys(map);
+    const values = labels.map(l => map[l].size);
+    return { labels, values };
+  }
+
   function dibujarGraficos(reg) {
     const concepto = agrupar(reg, "concepto", true);
     const estado   = agrupar(reg, "estado", false);
     const equipo   = agrupar(reg, "equipo", true);
     const fecha    = agrupar(reg, "fecha", true);
+    const equipoOps= agruparUnicos(reg, "equipo", "rut");
 
     const ctxConcepto = document.getElementById("chartConcepto").getContext("2d");
     const ctxEstado   = document.getElementById("chartEstado").getContext("2d");
     const ctxEquipo   = document.getElementById("chartEquipo").getContext("2d");
     const ctxFecha    = document.getElementById("chartFecha").getContext("2d");
+    const ctxEqOps    = document.getElementById("chartEquipoOperadores").getContext("2d");
 
     if (chartConcepto) chartConcepto.destroy();
     if (chartEstado)   chartEstado.destroy();
     if (chartEquipo)   chartEquipo.destroy();
     if (chartFecha)    chartFecha.destroy();
+    if (chartEquipoOperadores) chartEquipoOperadores.destroy();
 
     chartConcepto = new Chart(ctxConcepto, {
       type: "bar",
@@ -396,7 +401,7 @@
       type: "bar",
       data: {
         labels: equipo.labels,
-        datasets: [{ label: "Cantidad", data: equipo.values }]
+        datasets: [{ label: "Cantidad total", data: equipo.values }]
       }
     });
 
@@ -405,6 +410,14 @@
       data: {
         labels: fecha.labels,
         datasets: [{ label: "Cantidad", data: fecha.values }]
+      }
+    });
+
+    chartEquipoOperadores = new Chart(ctxEqOps, {
+      type: "bar",
+      data: {
+        labels: equipoOps.labels,
+        datasets: [{ label: "Operadores únicos", data: equipoOps.values }]
       }
     });
   }
