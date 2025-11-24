@@ -21,7 +21,7 @@
       font-size: 22px;
     }
     .container {
-      max-width: 1250px;
+      max-width: 1450px;           /* MÁS ANCHO */
       margin: 15px auto 40px;
       padding: 0 10px;
     }
@@ -96,25 +96,40 @@
       font-size: 11px;
       color: #999;
     }
+
+    /* GRÁFICOS MÁS GRANDES */
     .charts-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
-      gap: 15px;
+      grid-template-columns: repeat(2, minmax(0, 1fr)); /* 2 columnas en escritorio */
+      gap: 20px;
+      margin-bottom: 25px;
+    }
+    @media (max-width: 900px) {
+      .charts-grid {
+        grid-template-columns: 1fr; /* 1 columna en pantallas pequeñas */
+      }
     }
     .chart-card {
       background: #fff;
       border-radius: 6px;
-      padding: 12px;
+      padding: 14px;
       box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      min-height: 280px;            /* altura mínima */
     }
     .chart-card h3 {
       margin: 0 0 10px;
       font-size: 14px;
     }
+    /* Altura de los canvas */
+    .chart-card canvas {
+      width: 100% !important;
+      height: 230px !important;
+    }
+
     table {
       width: 100%;
       border-collapse: collapse;
-      margin-top: 25px;
+      margin-top: 5px;
       font-size: 12px;
       background: #fff;
       border-radius: 6px;
@@ -131,6 +146,9 @@
     }
     tr:nth-child(even) td {
       background: #fafafa;
+    }
+    tr:hover td {
+      background: #e9f3ff;          /* resaltado al pasar el mouse */
     }
 
     /* Versión para imprimir (PDF) */
@@ -383,7 +401,6 @@
 
   function poblarFiltroEquipos(reg) {
     const selectEquipo = document.getElementById("filtro-equipo");
-    // limpiar excepto "TODOS"
     selectEquipo.innerHTML = '<option value="TODOS">Todos</option>';
     const equipos = Array.from(new Set(reg.map(r => r.equipo || "Sin dato"))).sort();
     equipos.forEach(eq => {
