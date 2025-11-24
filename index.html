@@ -91,11 +91,11 @@
 </head>
 <body>
 
-<!-- HEADER CON LOGO Y AUTOR -->
+<!-- HEADER CON LOGO LOCAL Y AUTOR -->
 <header>
   <div style="display:flex; align-items:center; gap:15px;">
-    <!-- Cambia la URL del src si subes tu logo a otro lado -->
-    <img src="https://raw.githubusercontent.com/berny1520/berny1520.github.io/main/xtremelogo.png"
+    <!-- El logo debe estar en la misma carpeta que este HTML -->
+    <img src="xtremelogo.png"
          alt="Xtreme Mining"
          style="height:55px;">
     <div>
@@ -189,9 +189,9 @@
 <script>
   // ========= CONFIGURA TU HOJA AQUÍ =========
   const SHEET_ID   = "1hrcWRZGKF89yMjcbo1O4Ka8vOapf6OH2qY_TP0-rNCA";
-  const SHEET_NAME = "APP SEGUIMIENTO OPERACIONAL";
+  const SHEET_NAME = "APP SEGUIMIENTO OPERACIONAL"; // nombre EXACTO de la pestaña
 
-  const QUERY      = encodeURIComponent("select *");
+  const QUERY          = encodeURIComponent("select *");
   const SHEET_NAME_ENC = encodeURIComponent(SHEET_NAME);
 
   const SHEET_URL  =
@@ -207,23 +207,18 @@
   async function cargarDatos() {
     try {
       const res  = await fetch(SHEET_URL);
-      const text = await res.text();
 
+      if (!res.ok) {
+        const txt = await res.text();
+        console.error("HTTP error:", res.status, txt.slice(0,200));
+        throw new Error("HTTP " + res.status);
+      }
+
+      const text = await res.text();
       console.log("Respuesta cruda (primeros 200 caracteres):", text.slice(0, 200));
 
       const json = JSON.parse(text.substring(47, text.length - 2));
 
-      // Columnas:
-      // 0: RUT
-      // 1: NOMBRE
-      // 2: CONTRATO
-      // 3: EQUIPO
-      // 4: SOLICITANTE
-      // 5: RESPONSABLE
-      // 6: FECHACIERRE
-      // 7: CONCEPTO
-      // 8: CANTIDAD
-      // 9: ESTADO
       const registros = json.table.rows.map(r => ({
         rut:        r.c[0]?.v ?? "",
         nombre:     r.c[1]?.v ?? "",
