@@ -91,8 +91,22 @@
 </head>
 <body>
 
+<!-- HEADER CON LOGO Y AUTOR -->
 <header>
-  <h1>Dashboard Seguimiento Operadores – Capacitación y Certificación</h1>
+  <div style="display:flex; align-items:center; gap:15px;">
+    <!-- Cambia la URL del src si subes tu logo a otro lado -->
+    <img src="https://raw.githubusercontent.com/berny1520/berny1520.github.io/main/xtremelogo.png"
+         alt="Xtreme Mining"
+         style="height:55px;">
+    <div>
+      <h1 style="margin:0; font-size:22px;">
+        Dashboard Seguimiento Operadores – Capacitación y Certificación
+      </h1>
+      <div style="font-size:13px; color:#ccc; margin-top:3px;">
+        Creado por Bernardo Ojeda Molina – Jefe de Innovación y Formación
+      </div>
+    </div>
+  </div>
 </header>
 
 <div class="container">
@@ -151,7 +165,7 @@
     </div>
   </div>
 
-  <!-- Tabla detalle (opcional) -->
+  <!-- Tabla detalle -->
   <table id="tabla-detalle">
     <thead>
       <tr>
@@ -174,15 +188,19 @@
 
 <script>
   // ========= CONFIGURA TU HOJA AQUÍ =========
-  const SHEET_ID   = "1hrcWRZGKF89yMjcbo1O4Ka8vOapf6OH2qY_TP0-rNCA";   // <- reemplaza
-  const SHEET_NAME = "APP SEGUIMIENTO OPERACIONAL";                // <- reemplaza con el nombre real de la pestaña
+  const SHEET_ID   = "1hrcWRZGKF89yMjcbo1O4Ka8vOapf6OH2qY_TP0-rNCA";
+  const SHEET_NAME = "APP SEGUIMIENTO OPERACIONAL";
+
   const QUERY      = encodeURIComponent("select *");
+  const SHEET_NAME_ENC = encodeURIComponent(SHEET_NAME);
+
   const SHEET_URL  =
-    `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?sheet=${SHEET_NAME}&tq=${QUERY}`;
+    `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?sheet=${SHEET_NAME_ENC}&tq=${QUERY}`;
 
   let chartConcepto, chartEstado, chartEquipo, chartFecha;
 
   document.addEventListener("DOMContentLoaded", () => {
+    console.log("SHEET_URL:", SHEET_URL);
     cargarDatos();
   });
 
@@ -190,9 +208,12 @@
     try {
       const res  = await fetch(SHEET_URL);
       const text = await res.text();
+
+      console.log("Respuesta cruda (primeros 200 caracteres):", text.slice(0, 200));
+
       const json = JSON.parse(text.substring(47, text.length - 2));
 
-      // Ajusta los índices de columnas según tu Google Sheet:
+      // Columnas:
       // 0: RUT
       // 1: NOMBRE
       // 2: CONTRATO
@@ -203,9 +224,6 @@
       // 7: CONCEPTO
       // 8: CANTIDAD
       // 9: ESTADO
-      // 10: SEGUIMIENTO
-      // 11: REGISTRO CHARLAS
-      // 12: DOCUMENTACIÓN
       const registros = json.table.rows.map(r => ({
         rut:        r.c[0]?.v ?? "",
         nombre:     r.c[1]?.v ?? "",
@@ -217,7 +235,7 @@
         concepto:   r.c[7]?.v ?? "",
         cantidad:   Number(r.c[8]?.v ?? 0),
         estado:     (r.c[9]?.v ?? "").toUpperCase()
-      })).filter(r => r.concepto !== ""); // ignorar filas vacías
+      })).filter(r => r.concepto !== "");
 
       actualizarKPIs(registros);
       dibujarTabla(registros);
@@ -291,13 +309,9 @@
   }
 
   function dibujarGraficos(reg) {
-    // Por concepto (suma cantidad)
     const concepto = agrupar(reg, "concepto", true);
-    // Por estado (conteo)
     const estado   = agrupar(reg, "estado", false);
-    // Por equipo (suma cantidad)
     const equipo   = agrupar(reg, "equipo", true);
-    // Por fecha (suma cantidad)
     const fecha    = agrupar(reg, "fecha", true);
 
     const ctxConcepto = document.getElementById("chartConcepto").getContext("2d");
