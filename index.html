@@ -94,8 +94,8 @@
 <!-- HEADER CON LOGO LOCAL Y AUTOR -->
 <header>
   <div style="display:flex; align-items:center; gap:15px;">
-    <!-- El logo debe estar en la misma carpeta que este HTML -->
-    <img src="Logo_Xtreme.png"
+    <!-- El archivo debe llamarse exactamente logo_Xtreme.png -->
+    <img src="logo_Xtreme.png"
          alt="Xtreme Mining"
          style="height:55px;">
     <div>
@@ -187,15 +187,12 @@
 </div>
 
 <script>
-  // ========= CONFIGURA TU HOJA AQUÍ =========
-  const SHEET_ID   = "1hrcWRZGKF89yMjcbo1O4Ka8vOapf6OH2qY_TP0-rNCA";
-  const SHEET_NAME = "APP SEGUIMIENTO OPERACIONAL"; // nombre EXACTO de la pestaña
-
-  const QUERY          = encodeURIComponent("select *");
-  const SHEET_NAME_ENC = encodeURIComponent(SHEET_NAME);
-
-  const SHEET_URL  =
-    `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?sheet=${SHEET_NAME_ENC}&tq=${QUERY}`;
+  // ========= URL DE LA HOJA PUBLICADA =========
+  // Versión "gviz" a partir de tu enlace publicado:
+  // https://docs.google.com/spreadsheets/d/e/.../pubhtml?gid=1169506111&single=true
+  // la cambiamos a:
+  const SHEET_URL =
+    "https://docs.google.com/spreadsheets/d/e/2PACX-1vSMDU7-l9lRW2zs5qXHCoIn33DXxwyfV9-TApzYTF0UNzyTCE6QxsPeUl_Y9K1JIMAoOdBeShtfviPj/gviz/tq?gid=1169506111&tq=select%20*";
 
   let chartConcepto, chartEstado, chartEquipo, chartFecha;
 
@@ -207,18 +204,23 @@
   async function cargarDatos() {
     try {
       const res  = await fetch(SHEET_URL);
-
-      if (!res.ok) {
-        const txt = await res.text();
-        console.error("HTTP error:", res.status, txt.slice(0,200));
-        throw new Error("HTTP " + res.status);
-      }
-
       const text = await res.text();
+
       console.log("Respuesta cruda (primeros 200 caracteres):", text.slice(0, 200));
 
       const json = JSON.parse(text.substring(47, text.length - 2));
 
+      // Columnas (ajustadas a tu hoja):
+      // 0: RUT
+      // 1: NOMBREUSUARIO
+      // 2: CONTRATO
+      // 3: EQUIPO
+      // 4: SOLICITANTE
+      // 5: RESPONSABLE
+      // 6: FECHACIERRE
+      // 7: CONCEPTO
+      // 8: CANTIDAD
+      // 9: ESTADO
       const registros = json.table.rows.map(r => ({
         rut:        r.c[0]?.v ?? "",
         nombre:     r.c[1]?.v ?? "",
