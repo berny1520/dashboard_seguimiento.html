@@ -33,10 +33,6 @@
       box-shadow: 0 2px 4px rgba(0,0,0,0.3);
     }
 
-    header-inner {
-      display: flex;
-    }
-
     header > div {
       max-width: 1500px;
       margin: 0 auto;
@@ -408,6 +404,9 @@
 
   let chartConcepto, chartEstado, chartEquipo, chartFecha, chartEquipoOperadores;
 
+  // Guarda la última versión cruda del CSV para detectar cambios
+  let lastCsvRaw = "";
+
   // CONFIGURACIÓN GLOBAL CHART.JS (mejora estética)
   Chart.defaults.maintainAspectRatio = false;
   Chart.defaults.font.family = "Arial, sans-serif";
@@ -416,8 +415,17 @@
   Chart.defaults.plugins.legend.labels.pointStyle = "circle";
 
   document.addEventListener("DOMContentLoaded", () => {
-    cargarDatos();
+    cargarDatos(false);        // primera carga
+    iniciarAutoActualizacion(); // luego refresca solo
   });
+
+  // Auto-actualización cada X ms
+  function iniciarAutoActualizacion() {
+    const INTERVALO_MS = 60000;  // 60 segundos; puedes bajarlo a 15000 si quieres 15 s
+    setInterval(() => {
+      cargarDatos(true);       // true = recarga automática
+    }, INTERVALO_MS);
+  }
 
   // Parser CSV simple con comillas
   function parseCSV(text) {
@@ -464,10 +472,18 @@
     return rows;
   }
 
-  async function cargarDatos() {
+  // Carga de datos
+  async function cargarDatos(desdeAuto = false) {
     try {
       const res  = await fetch(CSV_URL);
       const text = await res.text();
+
+      // Si es recarga automática y el CSV es igual al anterior, no hacemos nada
+      if (desdeAuto && text === lastCsvRaw) {
+        console.log("Sin cambios en la base, no se actualiza el dashboard.");
+        return;
+      }
+      lastCsvRaw = text;
 
       const rows = parseCSV(text);
       if (!rows.length) return;
@@ -495,19 +511,27 @@
         }))
         .filter(r => r.concepto !== "" && (r.rut !== "" || r.nombre !== ""));
 
-      console.log("Registros cargados:", registrosBase.length);
+      console.log(
+        desdeAuto
+          ? "Registros recargados automáticamente: " + registrosBase.length
+          : "Registros cargados: " + registrosBase.length
+      );
 
       poblarFiltroEquipos(registrosBase);
-      aplicarFiltros();
+      aplicarFiltros(); // respeta los filtros actuales
 
     } catch (err) {
       console.error("Error cargando datos:", err);
-      alert("No se pudo leer la base desde Google Sheets.");
+      if (!desdeAuto) {
+        alert("No se pudo leer la base desde Google Sheets.");
+      }
     }
   }
 
   function poblarFiltroEquipos(reg) {
     const selectEquipo = document.getElementById("filtro-equipo");
+    const valorActual = selectEquipo.value || "TODOS";
+
     selectEquipo.innerHTML = '<option value="TODOS">Todos</option>';
     const equipos = Array.from(new Set(reg.map(r => r.equipo || "Sin dato"))).sort();
     equipos.forEach(eq => {
@@ -516,6 +540,11 @@
       opt.textContent = eq;
       selectEquipo.appendChild(opt);
     });
+
+    // Mantener la selección si sigue existiendo
+    if ([...selectEquipo.options].some(o => o.value === valorActual)) {
+      selectEquipo.value = valorActual;
+    }
   }
 
   function aplicarFiltros() {
