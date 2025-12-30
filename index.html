@@ -546,6 +546,7 @@ let registrosBase = [];
 
       poblarFiltroEquipos(registrosBase);
       poblarFiltroConceptos(registrosBase);
+      poblarFiltroConceptoss(registrosBase);
       aplicarFiltros(); // respeta los filtros actuales
 
     } catch (err) {
@@ -575,7 +576,7 @@ let registrosBase = [];
     }
 
 
-  function poblarFiltroConceptos(reg) {
+  function poblarFiltroConceptoss(reg) {
     const selectConcepto = document.getElementById("filtro-concepto");
     if (!selectConcepto) return;
 
