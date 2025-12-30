@@ -410,6 +410,7 @@
 </div>
 
 <script>
+  // URL CSV de la hoja publicada
     // URL CSV de la hoja publicada (directo)
   const CSV_URL_DIRECT =
     "https://docs.google.com/spreadsheets/d/e/2PACX-1vSMDU7-l9lRW2zs5qXHCoIn33DXxwyfV9-TApzYTF0UNzyTCE6QxsPeUl_Y9K1JIMAoOdBeShtfviPj/pub?gid=1169506111&single=true&output=csv";
@@ -551,7 +552,7 @@ let registrosBase = [];
     } catch (err) {
       console.error("Error cargando datos:", err);
       if (!desdeAuto) {
-        alert("No se pudo leer la base (bloqueo CORS o enlace CSV no accesible). Abre F12 > Console para ver el detalle.");
+        alert("No se pudo leer la base desde Google Sheets.");
       }
     }
   }
@@ -590,7 +591,6 @@ let registrosBase = [];
       selectConcepto.appendChild(opt);
     });
 
-    // Mantener la selección si sigue existiendo
     if ([...selectConcepto.options].some(o => o.value === valorActual)) {
       selectConcepto.value = valorActual;
     }
@@ -637,9 +637,7 @@ let registrosBase = [];
     document.getElementById("filtro-rut").value = "";
     document.getElementById("filtro-estado").value = "TODOS";
     document.getElementById("filtro-equipo").value = "TODOS";
-    if (document.getElementById("filtro-concepto")) {
-      document.getElementById("filtro-concepto").value = "TODOS";
-    }
+    if (document.getElementById("filtro-concepto")) document.getElementById("filtro-concepto").value = "TODOS";
     aplicarFiltros();
   }
 
