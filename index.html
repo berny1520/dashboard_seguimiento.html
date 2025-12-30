@@ -410,11 +410,14 @@
 </div>
 
 <script>
-  // URL CSV de la hoja publicada
-  const CSV_URL =
+    // URL CSV de la hoja publicada (directo)
+  const CSV_URL_DIRECT =
     "https://docs.google.com/spreadsheets/d/e/2PACX-1vSMDU7-l9lRW2zs5qXHCoIn33DXxwyfV9-TApzYTF0UNzyTCE6QxsPeUl_Y9K1JIMAoOdBeShtfviPj/pub?gid=1169506111&single=true&output=csv";
 
-  let registrosBase = [];
+  // Fallback SIN Apps Script (proxy público) para evitar bloqueos CORS desde GitHub Pages
+  const CSV_URL_PROXY =
+    "https://api.allorigins.win/raw?url=" + encodeURIComponent(CSV_URL_DIRECT);
+let registrosBase = [];
   let registrosActuales = [];
 
   let chartConcepto, chartEstado, chartEquipo, chartFecha, chartEquipoOperadores;
@@ -490,7 +493,16 @@
   // Carga de datos
   async function cargarDatos(desdeAuto = false) {
     try {
-      const res  = await fetch(CSV_URL);
+      // 1) Intento DIRECTO (puede fallar por CORS en GitHub Pages)
+      let res;
+      try {
+        res = await fetch(CSV_URL_DIRECT + "&_ts=" + Date.now(), { cache: "no-store" });
+        if (!res.ok) throw new Error("HTTP " + res.status);
+      } catch (e) {
+        // 2) Fallback PROXY (sin Apps Script)
+        res = await fetch(CSV_URL_PROXY + "&_ts=" + Date.now(), { cache: "no-store" });
+      }
+
       const text = await res.text();
 
       // Si es recarga automática y el CSV es igual al anterior, no hacemos nada
@@ -539,7 +551,7 @@
     } catch (err) {
       console.error("Error cargando datos:", err);
       if (!desdeAuto) {
-        alert("No se pudo leer la base desde Google Sheets.");
+        alert("No se pudo leer la base (bloqueo CORS o enlace CSV no accesible). Abre F12 > Console para ver el detalle.");
       }
     }
   }
