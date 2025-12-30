@@ -308,6 +308,14 @@
       </select>
     </div>
 
+
+    <div class="group">
+      <label for="filtro-concepto">Concepto:</label>
+      <select id="filtro-concepto" onchange="aplicarFiltros()">
+        <option value="TODOS">Todos</option>
+      </select>
+    </div>
+
     <div class="right">
       <button class="btn-secondary" onclick="limpiarFiltros()">Limpiar filtros</button>
       <button class="btn-pdf" onclick="exportarPDF()">Exportar PDF</button>
@@ -336,6 +344,12 @@
       <div class="kpi-extra" id="kpi-cerrados-pct">0%</div>
       <div class="kpi-value" id="kpi-cerrados">0</div>
       <div class="kpi-sub">Estado CERRADO</div>
+    </div>
+
+    <div class="kpi-card">
+      <div class="kpi-title">Brechas cerradas</div>
+      <div class="kpi-value" id="kpi-brechas-cerradas">0</div>
+      <div class="kpi-sub">Acciones correctivas cerradas</div>
     </div>
     <div class="kpi-card">
       <div class="kpi-title">En proceso</div>
@@ -519,6 +533,7 @@
       );
 
       poblarFiltroEquipos(registrosBase);
+      poblarFiltroConceptos(registrosBase);
       aplicarFiltros(); // respeta los filtros actuales
 
     } catch (err) {
@@ -546,6 +561,28 @@
     if ([...selectEquipo.options].some(o => o.value === valorActual)) {
       selectEquipo.value = valorActual;
     }
+
+
+  function poblarFiltroConceptos(reg) {
+    const selectConcepto = document.getElementById("filtro-concepto");
+    if (!selectConcepto) return;
+
+    const valorActual = selectConcepto.value || "TODOS";
+
+    selectConcepto.innerHTML = '<option value="TODOS">Todos</option>';
+    const conceptos = Array.from(new Set(reg.map(r => r.concepto || "Sin dato"))).sort();
+    conceptos.forEach(c => {
+      const opt = document.createElement("option");
+      opt.value = c;
+      opt.textContent = c;
+      selectConcepto.appendChild(opt);
+    });
+
+    // Mantener la selección si sigue existiendo
+    if ([...selectConcepto.options].some(o => o.value === valorActual)) {
+      selectConcepto.value = valorActual;
+    }
+  }
   }
 
   function aplicarFiltros() {
@@ -554,6 +591,7 @@
     const rutBusqueda = document.getElementById("filtro-rut").value.trim();
     const estadoSel   = document.getElementById("filtro-estado").value;
     const equipoSel   = document.getElementById("filtro-equipo").value;
+    const conceptoSel = document.getElementById("filtro-concepto") ? document.getElementById("filtro-concepto").value : "TODOS";
 
     let datos = registrosBase.slice();
 
@@ -572,6 +610,10 @@
       datos = datos.filter(r => r.equipo === equipoSel);
     }
 
+    if (conceptoSel !== "TODOS") {
+      datos = datos.filter(r => r.concepto === conceptoSel);
+    }
+
     registrosActuales = datos;
 
     actualizarKPIs(registrosActuales);
@@ -583,6 +625,9 @@
     document.getElementById("filtro-rut").value = "";
     document.getElementById("filtro-estado").value = "TODOS";
     document.getElementById("filtro-equipo").value = "TODOS";
+    if (document.getElementById("filtro-concepto")) {
+      document.getElementById("filtro-concepto").value = "TODOS";
+    }
     aplicarFiltros();
   }
 
@@ -601,6 +646,8 @@
     const proceso       = setEstado("PROCESO");
     const sinRespuesta  = setEstado("SIN RESPUESTA");
 
+    const brechasCerradas = cerrados; // Brecha cerrada = Estado CERRADO
+
     const operadoresUnicos = new Set(reg.map(r => r.rut || r.nombre)).size;
 
     const pct = n => total ? ((n / total) * 100).toFixed(1) + "%" : "0%";
@@ -612,6 +659,9 @@
     document.getElementById("kpi-cerrados").textContent          = cerrados;
     document.getElementById("kpi-proceso").textContent           = proceso;
     document.getElementById("kpi-sin-respuesta").textContent     = sinRespuesta;
+
+    const elBrechas = document.getElementById("kpi-brechas-cerradas");
+    if (elBrechas) elBrechas.textContent = brechasCerradas;
 
     document.getElementById("kpi-cerrados-pct").textContent      = pct(cerrados);
     document.getElementById("kpi-proceso-pct").textContent       = pct(proceso);
