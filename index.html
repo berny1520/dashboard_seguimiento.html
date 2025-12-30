@@ -545,8 +545,8 @@ let registrosBase = [];
       );
 
       poblarFiltroEquipos(registrosBase);
-      poblarFiltroConcepto(registrosBase);
-      poblarFiltroConcepto(registrosBase);
+      poblarFiltroConceptos(registrosBase);
+      poblarFiltroConceptoss(registrosBase);
       aplicarFiltros(); // respeta los filtros actuales
 
     } catch (err) {
@@ -576,14 +576,20 @@ let registrosBase = [];
     }
 
 
-  function poblarFiltroConcepto(reg) {
+  // Alias de compatibilidad: si alguna versión llama poblarFiltroConceptos() (sin s)
+  function poblarFiltroConceptos(reg) {
+    return poblarFiltroConceptos(reg);
+  }
+
+
+  function poblarFiltroConceptoss(reg) {
     const selectConcepto = document.getElementById("filtro-concepto");
     if (!selectConcepto) return;
 
     const valorActual = selectConcepto.value || "TODOS";
 
     selectConcepto.innerHTML = '<option value="TODOS">Todos</option>';
-    const concepto = Array.from(new Set(reg.map(r => r.concepto || "Sin dato"))).sort();
+    const conceptos = Array.from(new Set(reg.map(r => r.concepto || "Sin dato"))).sort();
     conceptos.forEach(c => {
       const opt = document.createElement("option");
       opt.value = c;
@@ -845,5 +851,6 @@ let registrosBase = [];
     });
   }
 </script>
+
 </body>
 </html>
