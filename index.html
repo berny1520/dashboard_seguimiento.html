@@ -297,6 +297,7 @@
         <option value="CERRADO">Cerrado</option>
         <option value="PROCESO">Proceso</option>
         <option value="APROBADO">Aprobado</option>
+        <option value="RECHAZADO">Rechazado</option>
         <option value="SIN RESPUESTA">Sin respuesta</option>
       </select>
     </div>
@@ -308,15 +309,7 @@
       </select>
     </div>
 
-    
-
-    <div class="group">
-      <label for="filtro-concepto">Concepto:</label>
-      <select id="filtro-concepto" onchange="aplicarFiltros()">
-        <option value="TODOS">Todos</option>
-      </select>
-    </div>
-<div class="right">
+    <div class="right">
       <button class="btn-secondary" onclick="limpiarFiltros()">Limpiar filtros</button>
       <button class="btn-pdf" onclick="exportarPDF()">Exportar PDF</button>
     </div>
@@ -343,14 +336,7 @@
       <div class="kpi-title">Cerrados</div>
       <div class="kpi-extra" id="kpi-cerrados-pct">0%</div>
       <div class="kpi-value" id="kpi-cerrados">0</div>
-      
-
-    <div class="kpi-card">
-      <div class="kpi-title">Brechas cerradas</div>
-      <div class="kpi-value" id="kpi-brechas-cerradas">0</div>
-      <div class="kpi-sub">Acciones correctivas cerradas</div>
-    </div>
-<div class="kpi-sub">Estado CERRADO</div>
+      <div class="kpi-sub">Estado CERRADO</div>
     </div>
     <div class="kpi-card">
       <div class="kpi-title">En proceso</div>
@@ -411,15 +397,9 @@
 </div>
 
 <script>
-  // URL CSV de la hoja publicada (fallback)
+  // URL CSV de la hoja publicada
   const CSV_URL =
     "https://docs.google.com/spreadsheets/d/e/2PACX-1vSMDU7-l9lRW2zs5qXHCoIn33DXxwyfV9-TApzYTF0UNzyTCE6QxsPeUl_Y9K1JIMAoOdBeShtfviPj/pub?gid=1169506111&single=true&output=csv";
-
-  // Proxy server-side (evita CORS)
-  const CSV_URL_PROXY = "https://api.allorigins.win/raw?url=" + encodeURIComponent(CSV_URL);
-
-  // Apps Script (JSONP, evita CORS) - requiere doGet(e) que soporte ?callback=
-  const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyrDTm91AoKwGo2ZO-Pr5Nws57y4zK8kiNHATBD3dbudts4M5lnI0O-PZRRAmnncx3CYw/exec";
 
   let registrosBase = [];
   let registrosActuales = [];
@@ -494,56 +474,11 @@
     return rows;
   }
 
-  
-  // --- Helpers anti-CORS ---
-  function cargarCSV_JSONP(url) {
-    return new Promise((resolve, reject) => {
-      const cbName = "__csv_cb_" + Math.random().toString(36).slice(2);
-      const timeout = setTimeout(() => {
-        try { delete window[cbName]; } catch (e) { window[cbName] = undefined; }
-        script.remove();
-        reject(new Error("Timeout JSONP"));
-      }, 15000);
-
-      window[cbName] = (payload) => {
-        clearTimeout(timeout);
-        try { delete window[cbName]; } catch (e) { window[cbName] = undefined; }
-        script.remove();
-
-        if (typeof payload === "string") return resolve(payload);
-        if (payload && typeof payload.csv === "string") return resolve(payload.csv);
-        return resolve(String(payload || ""));
-      };
-
-      const sep = url.includes("?") ? "&" : "?";
-      const script = document.createElement("script");
-      script.src = url + sep + "callback=" + cbName + "&_ts=" + Date.now();
-      script.onerror = () => {
-        clearTimeout(timeout);
-        try { delete window[cbName]; } catch (e) { window[cbName] = undefined; }
-        script.remove();
-        reject(new Error("Error JSONP"));
-      };
-      document.head.appendChild(script);
-    });
-  }
-
-  async function cargarCSV() {
-    // 1) Intento por proxy (suele funcionar sin tocar Apps Script)
-    try {
-      const res = await fetch(CSV_URL_PROXY, { cache: "no-store" });
-      if (res.ok) return await res.text();
-    } catch (e) {}
-
-    // 2) Intento JSONP con Apps Script (requiere soporte callback)
-    return await cargarCSV_JSONP(APPS_SCRIPT_URL);
-  }
-
-
   // Carga de datos
   async function cargarDatos(desdeAuto = false) {
     try {
-      const text = await cargarCSV();
+      const res  = await fetch(CSV_URL);
+      const text = await res.text();
 
       // Si es recarga automática y el CSV es igual al anterior, no hacemos nada
       if (desdeAuto && text === lastCsvRaw) {
@@ -585,13 +520,12 @@
       );
 
       poblarFiltroEquipos(registrosBase);
-      poblarFiltroConceptos(registrosBase);
       aplicarFiltros(); // respeta los filtros actuales
 
     } catch (err) {
       console.error("Error cargando datos:", err);
       if (!desdeAuto) {
-        alert("No se pudo leer la base (bloqueo CORS o enlace no accesible). Revisa F12 > Console.");
+        alert("No se pudo leer la base desde Google Sheets.");
       }
     }
   }
@@ -613,32 +547,6 @@
     if ([...selectEquipo.options].some(o => o.value === valorActual)) {
       selectEquipo.value = valorActual;
     }
-
-
-  function poblarFiltroConceptos(reg) {
-    const selectConcepto = document.getElementById("filtro-concepto");
-    if (!selectConcepto) return;
-
-    const valorActual = selectConcepto.value || "TODOS";
-    selectConcepto.innerHTML = '<option value="TODOS">Todos</option>';
-
-    const conceptos = Array.from(new Set(reg.map(r => r.concepto || "Sin dato"))).sort();
-    conceptos.forEach(c => {
-      const opt = document.createElement("option");
-      opt.value = c;
-      opt.textContent = c;
-      selectConcepto.appendChild(opt);
-    });
-
-    if ([...selectConcepto.options].some(o => o.value === valorActual)) {
-      selectConcepto.value = valorActual;
-    }
-  }
-
-  // Alias por si alguna versión llama sin "s"
-  function poblarFiltroConcepto(reg) {
-    return poblarFiltroConceptos(reg);
-  }
   }
 
   function aplicarFiltros() {
@@ -647,7 +555,6 @@
     const rutBusqueda = document.getElementById("filtro-rut").value.trim();
     const estadoSel   = document.getElementById("filtro-estado").value;
     const equipoSel   = document.getElementById("filtro-equipo").value;
-    const conceptoSel = (document.getElementById("filtro-concepto") || {value:"TODOS"}).value;
 
     let datos = registrosBase.slice();
 
@@ -666,10 +573,6 @@
       datos = datos.filter(r => r.equipo === equipoSel);
     }
 
-    if (conceptoSel !== "TODOS") {
-      datos = datos.filter(r => (r.concepto || "Sin dato") === conceptoSel);
-    }
-
     registrosActuales = datos;
 
     actualizarKPIs(registrosActuales);
@@ -681,8 +584,6 @@
     document.getElementById("filtro-rut").value = "";
     document.getElementById("filtro-estado").value = "TODOS";
     document.getElementById("filtro-equipo").value = "TODOS";
-    const fc = document.getElementById("filtro-concepto");
-    if (fc) fc.value = "TODOS";
     aplicarFiltros();
   }
 
@@ -710,9 +611,6 @@
     document.getElementById("kpi-operadores-unicos").textContent = operadoresUnicos;
 
     document.getElementById("kpi-cerrados").textContent          = cerrados;
-
-    const kb = document.getElementById("kpi-brechas-cerradas");
-    if (kb) kb.textContent = cerrados;
     document.getElementById("kpi-proceso").textContent           = proceso;
     document.getElementById("kpi-sin-respuesta").textContent     = sinRespuesta;
 
