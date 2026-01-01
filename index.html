@@ -124,36 +124,43 @@
     }
 
     /* KPIs */
-    .kpi-grid{
-      display:grid;
-      grid-template-columns:repeat(auto-fit,minmax(140px,1fr));
-      gap:8px;
-      margin-bottom:14px;
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 12px;
+      margin-bottom: 20px;
     }
-    /* Si hay muchas tarjetas, en pantallas medianas permite deslizar horizontal */
-    @media (min-width: 1100px){
-      .kpi-grid{grid-template-columns:repeat(auto-fit,minmax(130px,1fr));}
+    .kpi-card {
+      background: var(--card-bg);
+      border-radius: 10px;
+      padding: 10px 12px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+      position: relative;
+      overflow: hidden;
     }
-    @media (max-width: 1099px){
-      .kpi-grid{
-        grid-auto-flow:column;
-        grid-auto-columns:minmax(160px,1fr);
-        overflow-x:auto;
-        padding-bottom:4px;
-      }
-      .kpi-grid::-webkit-scrollbar{height:8px;}
+    .kpi-card::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      width: 4px;
+      background: var(--primary);
     }
-    .kpi-card{
-      background:#fff;
-      padding:8px 10px;
-      border-radius:10px;
-      box-shadow:0 2px 6px rgba(0,0,0,.06);
-      border-left:4px solid #d9232d;
-      min-width:0;
+    .kpi-title {
+      font-size: 11px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      margin-bottom: 4px;
     }
-    .kpi-title{font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:.2px;}
-    .kpi-value{font-size:20px;font-weight:800;line-height:1.1;margin-top:2px;}
-    .kpi-sub{font-size:11px;color:#6b7280;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px;}
+    .kpi-value {
+      font-size: 21px;
+      font-weight: bold;
+    }
+    .kpi-sub {
+      font-size: 11px;
+      color: var(--text-muted);
+    }
     .kpi-extra {
       font-size: 11px;
       color: var(--primary);
@@ -289,7 +296,6 @@
         <option value="TODOS">Todos</option>
         <option value="CERRADO">Cerrado</option>
         <option value="PROCESO">Proceso</option>
-        <option value="APROBADO">Aprobado</option>
         <option value="SIN RESPUESTA">Sin respuesta</option>
       </select>
     </div>
@@ -301,15 +307,7 @@
       </select>
     </div>
 
-    
-
-    <div class="group">
-      <label for="filtro-concepto">Concepto:</label>
-      <select id="filtro-concepto" onchange="aplicarFiltros()">
-        <option value="TODOS">Todos</option>
-      </select>
-    </div>
-<div class="right">
+    <div class="right">
       <button class="btn-secondary" onclick="limpiarFiltros()">Limpiar filtros</button>
       <button class="btn-pdf" onclick="exportarPDF()">Exportar PDF</button>
     </div>
@@ -336,14 +334,7 @@
       <div class="kpi-title">Cerrados</div>
       <div class="kpi-extra" id="kpi-cerrados-pct">0%</div>
       <div class="kpi-value" id="kpi-cerrados">0</div>
-      
-
-      <div class="kpi-card">
-        <div class="kpi-title">Brechas cerradas</div>
-        <div class="kpi-value" id="kpi-brechas-cerradas">0</div>
-        <div class="kpi-sub">Ítems cerrados (Estado CERRADO)</div>
-      </div>
-<div class="kpi-sub">Estado CERRADO</div>
+      <div class="kpi-sub">Estado CERRADO</div>
     </div>
     <div class="kpi-card">
       <div class="kpi-title">En proceso</div>
@@ -397,10 +388,6 @@
         <th>Concepto</th>
         <th>Cantidad</th>
         <th>Estado</th>
-        <th>Evaluación teórica</th>
-        <th>Seguimiento</th>
-        <th>Registro charlas</th>
-        <th>Documentación</th>
       </tr>
     </thead>
     <tbody></tbody>
@@ -520,11 +507,7 @@
           fecha:      c[7]  || "",
           concepto:   c[8]  || "",
           cantidad:   Number(c[9]  || 0),
-          estado:     (c[10] || "").toUpperCase(),
-          evaluacionTeorica: (c[11] || ""),
-          seguimiento:       (c[12] || ""),
-          registroCharlas:   (c[13] || ""),
-          documentacion:     (c[14] || "")
+          estado:     (c[10] || "").toUpperCase()
         }))
         .filter(r => r.concepto !== "" && (r.rut !== "" || r.nombre !== ""));
 
@@ -535,7 +518,6 @@
       );
 
       poblarFiltroEquipos(registrosBase);
-      poblarFiltroConceptos(registrosBase);
       aplicarFiltros(); // respeta los filtros actuales
 
     } catch (err) {
@@ -563,27 +545,6 @@
     if ([...selectEquipo.options].some(o => o.value === valorActual)) {
       selectEquipo.value = valorActual;
     }
-
-
-  function poblarFiltroConceptos(reg) {
-    const selectConcepto = document.getElementById("filtro-concepto");
-    if (!selectConcepto) return;
-
-    const valorActual = selectConcepto.value || "TODOS";
-    selectConcepto.innerHTML = '<option value="TODOS">Todos</option>';
-
-    const conceptos = Array.from(new Set(reg.map(r => r.concepto || "Sin dato"))).sort();
-    conceptos.forEach(c => {
-      const opt = document.createElement("option");
-      opt.value = c;
-      opt.textContent = c;
-      selectConcepto.appendChild(opt);
-    });
-
-    if ([...selectConcepto.options].some(o => o.value === valorActual)) {
-      selectConcepto.value = valorActual;
-    }
-  }
   }
 
   function aplicarFiltros() {
@@ -592,7 +553,6 @@
     const rutBusqueda = document.getElementById("filtro-rut").value.trim();
     const estadoSel   = document.getElementById("filtro-estado").value;
     const equipoSel   = document.getElementById("filtro-equipo").value;
-    const conceptoSel = (document.getElementById("filtro-concepto")||{value:"TODOS"}).value;
 
     let datos = registrosBase.slice();
 
@@ -611,10 +571,6 @@
       datos = datos.filter(r => r.equipo === equipoSel);
     }
 
-    if (conceptoSel !== "TODOS") {
-      datos = datos.filter(r => r.concepto === conceptoSel);
-    }
-
     registrosActuales = datos;
 
     actualizarKPIs(registrosActuales);
@@ -626,8 +582,6 @@
     document.getElementById("filtro-rut").value = "";
     document.getElementById("filtro-estado").value = "TODOS";
     document.getElementById("filtro-equipo").value = "TODOS";
-    const fc = document.getElementById("filtro-concepto");
-    if (fc) fc.value = "TODOS";
     aplicarFiltros();
   }
 
@@ -655,9 +609,6 @@
     document.getElementById("kpi-operadores-unicos").textContent = operadoresUnicos;
 
     document.getElementById("kpi-cerrados").textContent          = cerrados;
-
-    const kb = document.getElementById("kpi-brechas-cerradas");
-    if (kb) kb.textContent = cerrados;
     document.getElementById("kpi-proceso").textContent           = proceso;
     document.getElementById("kpi-sin-respuesta").textContent     = sinRespuesta;
 
@@ -682,10 +633,6 @@
         <td>${r.concepto}</td>
         <td>${r.cantidad}</td>
         <td>${r.estado}</td>
-        <td>${r.evaluacionTeorica || ""}</td>
-        <td>${r.seguimiento || ""}</td>
-        <td>${r.registroCharlas || ""}</td>
-        <td>${r.documentacion || ""}</td>
       `;
       tbody.appendChild(tr);
     });
