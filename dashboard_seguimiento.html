@@ -1,0 +1,842 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>Dashboard Seguimiento Operadores</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    :root {
+      --primary: #d9232d;  /* rojo Xtreme */
+      --primary-soft: #ffe5e7;
+      --dark: #222;
+      --bg: #f2f4f7;
+      --card-bg: #ffffff;
+      --text-main: #222;
+      --text-muted: #777;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: Arial, Helvetica, sans-serif;
+      background: var(--bg);
+      color: var(--text-main);
+    }
+
+    header {
+      background: var(--dark);
+      color: #fff;
+      padding: 10px 30px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+    }
+
+    header > div {
+      max-width: 1500px;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      gap: 18px;
+    }
+
+    header img {
+      height: 55px;
+    }
+
+    header h1 {
+      margin: 0;
+      font-size: 22px;
+    }
+
+    header .subtitle {
+      font-size: 13px;
+      color: #ccc;
+      margin-top: 3px;
+    }
+
+    .container {
+      max-width: 1500px;
+      margin: 15px auto 40px;
+      padding: 0 10px 20px;
+    }
+
+    /* Barra de filtros */
+    .filters-bar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px 15px;
+      align-items: center;
+      background: var(--card-bg);
+      padding: 12px 16px;
+      border-radius: 10px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+      margin-bottom: 18px;
+      font-size: 13px;
+    }
+    .filters-bar .group {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .filters-bar label {
+      font-weight: bold;
+      margin-right: 2px;
+    }
+    .filters-bar input,
+    .filters-bar select {
+      padding: 5px 7px;
+      font-size: 13px;
+      border-radius: 5px;
+      border: 1px solid #d0d4da;
+      min-width: 140px;
+    }
+    .filters-bar button {
+      padding: 6px 11px;
+      font-size: 13px;
+      border-radius: 5px;
+      border: none;
+      cursor: pointer;
+      transition: transform 0.05s ease, box-shadow 0.1s ease;
+    }
+    .filters-bar button:active {
+      transform: translateY(1px);
+      box-shadow: 0 1px 2px rgba(0,0,0,0.2) inset;
+    }
+    .btn-primary {
+      background: var(--primary);
+      color: #fff;
+    }
+    .btn-secondary {
+      background: #6c757d;
+      color: #fff;
+    }
+    .btn-pdf {
+      background: #d9534f;
+      color: #fff;
+    }
+
+    .filters-bar .right {
+      margin-left: auto;
+      display: flex;
+      gap: 8px;
+    }
+
+    /* KPIs */
+    .kpi-grid{
+      display:grid;
+      grid-template-columns:repeat(auto-fit,minmax(140px,1fr));
+      gap:8px;
+      margin-bottom:14px;
+    }
+    /* Si hay muchas tarjetas, en pantallas medianas permite deslizar horizontal */
+    @media (min-width: 1100px){
+      .kpi-grid{grid-template-columns:repeat(auto-fit,minmax(130px,1fr));}
+    }
+    @media (max-width: 1099px){
+      .kpi-grid{
+        grid-auto-flow:column;
+        grid-auto-columns:minmax(160px,1fr);
+        overflow-x:auto;
+        padding-bottom:4px;
+      }
+      .kpi-grid::-webkit-scrollbar{height:8px;}
+    }
+    .kpi-card{
+      background:#fff;
+      padding:8px 10px;
+      border-radius:10px;
+      box-shadow:0 2px 6px rgba(0,0,0,.06);
+      border-left:4px solid #d9232d;
+      min-width:0;
+    }
+    .kpi-title{font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:.2px;}
+    .kpi-value{font-size:20px;font-weight:800;line-height:1.1;margin-top:2px;}
+    .kpi-sub{font-size:11px;color:#6b7280;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px;}
+    .kpi-extra {
+      font-size: 11px;
+      color: var(--primary);
+      font-weight: bold;
+      position: absolute;
+      right: 10px;
+      top: 8px;
+    }
+
+    /* GRÁFICOS */
+    .charts-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 22px;
+      margin-top: 10px;
+      margin-bottom: 20px;
+    }
+
+    .chart-card {
+      background: var(--card-bg);
+      border-radius: 10px;
+      padding: 16px 18px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+      height: 400px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .chart-card.wide {
+      grid-column: 1 / -1;   /* ocupa todo el ancho */
+      height: 420px;
+    }
+
+    .chart-card h3 {
+      margin: 0 0 12px;
+      font-size: 15px;
+      font-weight: 600;
+    }
+
+    .chart-card canvas {
+      width: 100% !important;
+      height: calc(100% - 20px) !important;
+    }
+
+    @media (max-width: 950px) {
+      .charts-grid {
+        grid-template-columns: 1fr;
+      }
+      .chart-card,
+      .chart-card.wide {
+        grid-column: 1 / -1;
+        height: 360px;
+      }
+    }
+
+    /* Tabla */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 5px;
+      font-size: 12px;
+      background: var(--card-bg);
+      border-radius: 10px;
+      overflow: hidden;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+    }
+    th, td {
+      padding: 6px 8px;
+      border-bottom: 1px solid #eee;
+      white-space: nowrap;
+    }
+    th {
+      background: #f4f6f8;
+      text-align: left;
+    }
+    tr:nth-child(even) td {
+      background: #fafafa;
+    }
+    tr:hover td {
+      background: #e9f3ff;
+    }
+
+    /* Impresión */
+    @media print {
+      body {
+        background: #fff;
+      }
+      header {
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
+      .filters-bar {
+        display: none;
+      }
+      button {
+        display: none;
+      }
+      .container {
+        max-width: 100%;
+        margin: 0;
+        padding: 0 5mm;
+      }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div>
+    <img src="logo_Xtreme.png" alt="Xtreme Mining" />
+    <div>
+      <h1>Dashboard Seguimiento Operadores – Capacitación y Certificación</h1>
+      <div class="subtitle">
+        Creado por Bernardo Ojeda Molina – Jefe de Innovación y Formación
+      </div>
+    </div>
+  </div>
+</header>
+
+<div class="container">
+
+  <!-- BARRA DE FILTROS -->
+  <div class="filters-bar">
+    <div class="group">
+      <label for="filtro-rut">RUT:</label>
+      <input id="filtro-rut" type="text" placeholder="Ej: 12521561-0">
+      <button class="btn-primary" onclick="aplicarFiltros()">Buscar</button>
+    </div>
+
+    <div class="group">
+      <label for="filtro-estado">Estado:</label>
+      <select id="filtro-estado" onchange="aplicarFiltros()">
+        <option value="TODOS">Todos</option>
+        <option value="CERRADO">Cerrado</option>
+        <option value="PROCESO">Proceso</option>
+        <option value="APROBADO">Aprobado</option>
+        <option value="SIN RESPUESTA">Sin respuesta</option>
+      </select>
+    </div>
+
+    <div class="group">
+      <label for="filtro-equipo">Equipo:</label>
+      <select id="filtro-equipo" onchange="aplicarFiltros()">
+        <option value="TODOS">Todos</option>
+      </select>
+    </div>
+
+    
+
+    <div class="group">
+      <label for="filtro-concepto">Concepto:</label>
+      <select id="filtro-concepto" onchange="aplicarFiltros()">
+        <option value="TODOS">Todos</option>
+      </select>
+    </div>
+<div class="right">
+      <button class="btn-secondary" onclick="limpiarFiltros()">Limpiar filtros</button>
+      <button class="btn-pdf" onclick="exportarPDF()">Exportar PDF</button>
+    </div>
+  </div>
+
+  <!-- KPIs -->
+  <div class="kpi-grid">
+    <div class="kpi-card">
+      <div class="kpi-title">Solicitudes registradas</div>
+      <div class="kpi-value" id="kpi-total-registros">0</div>
+      <div class="kpi-sub">Total filas con concepto</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-title">Operadores únicos</div>
+      <div class="kpi-value" id="kpi-operadores-unicos">0</div>
+      <div class="kpi-sub">Por RUT / Nombre</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-title">Cantidad total</div>
+      <div class="kpi-value" id="kpi-cantidad-total">0</div>
+      <div class="kpi-sub">Suma columna CANTIDAD</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-title">Cerrados</div>
+      <div class="kpi-extra" id="kpi-cerrados-pct">0%</div>
+      <div class="kpi-value" id="kpi-cerrados">0</div>
+      
+
+      <div class="kpi-card">
+        <div class="kpi-title">Brechas cerradas</div>
+        <div class="kpi-value" id="kpi-brechas-cerradas">0</div>
+        <div class="kpi-sub">Ítems cerrados (Estado CERRADO)</div>
+      </div>
+<div class="kpi-sub">Estado CERRADO</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-title">En proceso</div>
+      <div class="kpi-extra" id="kpi-proceso-pct">0%</div>
+      <div class="kpi-value" id="kpi-proceso">0</div>
+      <div class="kpi-sub">Estado PROCESO</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-title">Sin respuesta</div>
+      <div class="kpi-extra" id="kpi-sin-respuesta-pct">0%</div>
+      <div class="kpi-value" id="kpi-sin-respuesta">0</div>
+      <div class="kpi-sub">Estado SIN RESPUESTA</div>
+    </div>
+  </div>
+
+  <!-- GRÁFICOS -->
+  <div class="charts-grid">
+    <div class="chart-card wide">
+      <h3>Cantidad por concepto</h3>
+      <canvas id="chartConcepto"></canvas>
+    </div>
+    <div class="chart-card">
+      <h3>Registros por estado</h3>
+      <canvas id="chartEstado"></canvas>
+    </div>
+    <div class="chart-card">
+      <h3>Cantidad por equipo (unidades)</h3>
+      <canvas id="chartEquipo"></canvas>
+    </div>
+    <div class="chart-card">
+      <h3>Cantidad por fecha de cierre</h3>
+      <canvas id="chartFecha"></canvas>
+    </div>
+    <div class="chart-card">
+      <h3>Operadores únicos por equipo</h3>
+      <canvas id="chartEquipoOperadores"></canvas>
+    </div>
+  </div>
+
+  <!-- TABLA DETALLE -->
+  <table id="tabla-detalle">
+    <thead>
+      <tr>
+        <th>RUT</th>
+        <th>Nombre</th>
+        <th>Contrato</th>
+        <th>Equipo</th>
+        <th>Solicitante</th>
+        <th>Responsable</th>
+        <th>Fecha cierre</th>
+        <th>Concepto</th>
+        <th>Cantidad</th>
+        <th>Estado</th>
+        <th>Evaluación teórica</th>
+        <th>Seguimiento</th>
+        <th>Registro charlas</th>
+        <th>Documentación</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+</div>
+
+<script>
+  // URL CSV de la hoja publicada
+  const CSV_URL =
+    "https://docs.google.com/spreadsheets/d/e/2PACX-1vSMDU7-l9lRW2zs5qXHCoIn33DXxwyfV9-TApzYTF0UNzyTCE6QxsPeUl_Y9K1JIMAoOdBeShtfviPj/pub?gid=1169506111&single=true&output=csv";
+
+  let registrosBase = [];
+  let registrosActuales = [];
+
+  let chartConcepto, chartEstado, chartEquipo, chartFecha, chartEquipoOperadores;
+
+  // Guarda la última versión cruda del CSV para detectar cambios
+  let lastCsvRaw = "";
+
+  // CONFIGURACIÓN GLOBAL CHART.JS (mejora estética)
+  Chart.defaults.maintainAspectRatio = false;
+  Chart.defaults.font.family = "Arial, sans-serif";
+  Chart.defaults.plugins.legend.position = "bottom";
+  Chart.defaults.plugins.legend.labels.usePointStyle = true;
+  Chart.defaults.plugins.legend.labels.pointStyle = "circle";
+
+  document.addEventListener("DOMContentLoaded", () => {
+    cargarDatos(false);        // primera carga
+    iniciarAutoActualizacion(); // luego refresca solo
+  });
+
+  // Auto-actualización cada X ms
+  function iniciarAutoActualizacion() {
+    const INTERVALO_MS = 60000;  // 60 segundos; puedes bajarlo a 15000 si quieres 15 s
+    setInterval(() => {
+      cargarDatos(true);       // true = recarga automática
+    }, INTERVALO_MS);
+  }
+
+  // Parser CSV simple con comillas
+  function parseCSV(text) {
+    const rows = [];
+    let current = [];
+    let value = "";
+    let insideQuotes = false;
+
+    for (let i = 0; i < text.length; i++) {
+      const ch = text[i];
+      const next = text[i + 1];
+
+      if (insideQuotes) {
+        if (ch === '"' && next === '"') {
+          value += '"';
+          i++;
+        } else if (ch === '"') {
+          insideQuotes = false;
+        } else {
+          value += ch;
+        }
+      } else {
+        if (ch === '"') {
+          insideQuotes = true;
+        } else if (ch === ",") {
+          current.push(value);
+          value = "";
+        } else if (ch === "\r") {
+          // nada
+        } else if (ch === "\n") {
+          current.push(value);
+          rows.push(current);
+          current = [];
+          value = "";
+        } else {
+          value += ch;
+        }
+      }
+    }
+    if (value.length > 0 || current.length > 0) {
+      current.push(value);
+      rows.push(current);
+    }
+    return rows;
+  }
+
+  // Carga de datos
+  async function cargarDatos(desdeAuto = false) {
+    try {
+      const res  = await fetch(CSV_URL);
+      const text = await res.text();
+
+      // Si es recarga automática y el CSV es igual al anterior, no hacemos nada
+      if (desdeAuto && text === lastCsvRaw) {
+        console.log("Sin cambios en la base, no se actualiza el dashboard.");
+        return;
+      }
+      lastCsvRaw = text;
+
+      const rows = parseCSV(text);
+      if (!rows.length) return;
+
+      // Columna 1 = RUT (columna A está vacía)
+      const dataRows = rows.filter((c, i) => {
+        if (i === 0) return false;        // encabezados
+        if (!c[1]) return false;          // sin RUT
+        if (c[1].toString().toUpperCase() === "RUT") return false;
+        return true;
+      });
+
+      registrosBase = dataRows
+        .map(c => ({
+          rut:        c[1]  || "",
+          nombre:     c[2]  || "",
+          contrato:   c[3]  || "",
+          equipo:     c[4]  || "",
+          solicitante:c[5]  || "",
+          responsable:c[6]  || "",
+          fecha:      c[7]  || "",
+          concepto:   c[8]  || "",
+          cantidad:   Number(c[9]  || 0),
+          estado:     (c[10] || "").toUpperCase(),
+          evaluacionTeorica: (c[11] || ""),
+          seguimiento:       (c[12] || ""),
+          registroCharlas:   (c[13] || ""),
+          documentacion:     (c[14] || "")
+        }))
+        .filter(r => r.concepto !== "" && (r.rut !== "" || r.nombre !== ""));
+
+      console.log(
+        desdeAuto
+          ? "Registros recargados automáticamente: " + registrosBase.length
+          : "Registros cargados: " + registrosBase.length
+      );
+
+      poblarFiltroEquipos(registrosBase);
+      poblarFiltroConceptos(registrosBase);
+      aplicarFiltros(); // respeta los filtros actuales
+
+    } catch (err) {
+      console.error("Error cargando datos:", err);
+      if (!desdeAuto) {
+        alert("No se pudo leer la base desde Google Sheets.");
+      }
+    }
+  }
+
+  function poblarFiltroEquipos(reg) {
+    const selectEquipo = document.getElementById("filtro-equipo");
+    const valorActual = selectEquipo.value || "TODOS";
+
+    selectEquipo.innerHTML = '<option value="TODOS">Todos</option>';
+    const equipos = Array.from(new Set(reg.map(r => r.equipo || "Sin dato"))).sort();
+    equipos.forEach(eq => {
+      const opt = document.createElement("option");
+      opt.value = eq;
+      opt.textContent = eq;
+      selectEquipo.appendChild(opt);
+    });
+
+    // Mantener la selección si sigue existiendo
+    if ([...selectEquipo.options].some(o => o.value === valorActual)) {
+      selectEquipo.value = valorActual;
+    }
+
+
+  function poblarFiltroConceptos(reg) {
+    const selectConcepto = document.getElementById("filtro-concepto");
+    if (!selectConcepto) return;
+
+    const valorActual = selectConcepto.value || "TODOS";
+    selectConcepto.innerHTML = '<option value="TODOS">Todos</option>';
+
+    const conceptos = Array.from(new Set(reg.map(r => r.concepto || "Sin dato"))).sort();
+    conceptos.forEach(c => {
+      const opt = document.createElement("option");
+      opt.value = c;
+      opt.textContent = c;
+      selectConcepto.appendChild(opt);
+    });
+
+    if ([...selectConcepto.options].some(o => o.value === valorActual)) {
+      selectConcepto.value = valorActual;
+    }
+  }
+  }
+
+  function aplicarFiltros() {
+    if (!registrosBase.length) return;
+
+    const rutBusqueda = document.getElementById("filtro-rut").value.trim();
+    const estadoSel   = document.getElementById("filtro-estado").value;
+    const equipoSel   = document.getElementById("filtro-equipo").value;
+    const conceptoSel = (document.getElementById("filtro-concepto")||{value:"TODOS"}).value;
+
+    let datos = registrosBase.slice();
+
+    if (rutBusqueda) {
+      const rutLower = rutBusqueda.toLowerCase();
+      datos = datos.filter(r =>
+        (r.rut || "").toLowerCase().includes(rutLower)
+      );
+    }
+
+    if (estadoSel !== "TODOS") {
+      datos = datos.filter(r => r.estado === estadoSel);
+    }
+
+    if (equipoSel !== "TODOS") {
+      datos = datos.filter(r => r.equipo === equipoSel);
+    }
+
+    if (conceptoSel !== "TODOS") {
+      datos = datos.filter(r => r.concepto === conceptoSel);
+    }
+
+    registrosActuales = datos;
+
+    actualizarKPIs(registrosActuales);
+    dibujarTabla(registrosActuales);
+    dibujarGraficos(registrosActuales);
+  }
+
+  function limpiarFiltros() {
+    document.getElementById("filtro-rut").value = "";
+    document.getElementById("filtro-estado").value = "TODOS";
+    document.getElementById("filtro-equipo").value = "TODOS";
+    const fc = document.getElementById("filtro-concepto");
+    if (fc) fc.value = "TODOS";
+    aplicarFiltros();
+  }
+
+  function exportarPDF() {
+    window.print();
+  }
+
+  function actualizarKPIs(reg) {
+    const total = reg.length;
+    const totalCantidad = reg.reduce((s, r) => s + (r.cantidad || 0), 0);
+
+    const setEstado = estado =>
+      reg.filter(r => r.estado === estado).length;
+
+    const cerrados      = setEstado("CERRADO");
+    const proceso       = setEstado("PROCESO");
+    const sinRespuesta  = setEstado("SIN RESPUESTA");
+
+    const operadoresUnicos = new Set(reg.map(r => r.rut || r.nombre)).size;
+
+    const pct = n => total ? ((n / total) * 100).toFixed(1) + "%" : "0%";
+
+    document.getElementById("kpi-total-registros").textContent   = total;
+    document.getElementById("kpi-cantidad-total").textContent    = totalCantidad;
+    document.getElementById("kpi-operadores-unicos").textContent = operadoresUnicos;
+
+    document.getElementById("kpi-cerrados").textContent          = cerrados;
+
+    const kb = document.getElementById("kpi-brechas-cerradas");
+    if (kb) kb.textContent = cerrados;
+    document.getElementById("kpi-proceso").textContent           = proceso;
+    document.getElementById("kpi-sin-respuesta").textContent     = sinRespuesta;
+
+    document.getElementById("kpi-cerrados-pct").textContent      = pct(cerrados);
+    document.getElementById("kpi-proceso-pct").textContent       = pct(proceso);
+    document.getElementById("kpi-sin-respuesta-pct").textContent = pct(sinRespuesta);
+  }
+
+  function dibujarTabla(reg) {
+    const tbody = document.querySelector("#tabla-detalle tbody");
+    tbody.innerHTML = "";
+    reg.forEach(r => {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td>${r.rut}</td>
+        <td>${r.nombre}</td>
+        <td>${r.contrato}</td>
+        <td>${r.equipo}</td>
+        <td>${r.solicitante}</td>
+        <td>${r.responsable}</td>
+        <td>${r.fecha}</td>
+        <td>${r.concepto}</td>
+        <td>${r.cantidad}</td>
+        <td>${r.estado}</td>
+        <td>${r.evaluacionTeorica || ""}</td>
+        <td>${r.seguimiento || ""}</td>
+        <td>${r.registroCharlas || ""}</td>
+        <td>${r.documentacion || ""}</td>
+      `;
+      tbody.appendChild(tr);
+    });
+  }
+
+  function agrupar(reg, clave, usarCantidad = false) {
+    const map = {};
+    reg.forEach(r => {
+      const key = r[clave] || "Sin dato";
+      if (!map[key]) map[key] = 0;
+      map[key] += usarCantidad ? (r.cantidad || 0) : 1;
+    });
+    const labels = Object.keys(map);
+    const values = labels.map(l => map[l]);
+    return { labels, values };
+  }
+
+  function agruparUnicos(reg, claveAgrupar, claveUnico) {
+    const map = {};
+    reg.forEach(r => {
+      const grupo = r[claveAgrupar] || "Sin dato";
+      const id    = r[claveUnico]   || "";
+      if (!map[grupo]) map[grupo] = new Set();
+      if (id) map[grupo].add(id);
+    });
+    const labels = Object.keys(map);
+    const values = labels.map(l => map[l].size);
+    return { labels, values };
+  }
+
+  function dibujarGraficos(reg) {
+    const concepto = agrupar(reg, "concepto", true);
+    const estado   = agrupar(reg, "estado", false);
+    const equipo   = agrupar(reg, "equipo", true);
+    const fecha    = agrupar(reg, "fecha", true);
+    const equipoOps= agruparUnicos(reg, "equipo", "rut");
+
+    const ctxConcepto = document.getElementById("chartConcepto").getContext("2d");
+    const ctxEstado   = document.getElementById("chartEstado").getContext("2d");
+    const ctxEquipo   = document.getElementById("chartEquipo").getContext("2d");
+    const ctxFecha    = document.getElementById("chartFecha").getContext("2d");
+    const ctxEqOps    = document.getElementById("chartEquipoOperadores").getContext("2d");
+
+    if (chartConcepto) chartConcepto.destroy();
+    if (chartEstado)   chartEstado.destroy();
+    if (chartEquipo)   chartEquipo.destroy();
+    if (chartFecha)    chartFecha.destroy();
+    if (chartEquipoOperadores) chartEquipoOperadores.destroy();
+
+    const palette = {
+      primary: "#d9232d",
+      primaryLight: "#f7c1c4",
+      blue: "#3498db",
+      blueLight: "#d6e9f8",
+      orange: "#f5a623",
+      green: "#2ecc71"
+    };
+
+    chartConcepto = new Chart(ctxConcepto, {
+      type: "bar",
+      data: {
+        labels: concepto.labels,
+        datasets: [{
+          label: "Cantidad",
+          data: concepto.values,
+          backgroundColor: palette.blueLight,
+          borderColor: palette.blue,
+          borderWidth: 2
+        }]
+      },
+      options: {
+        scales: {
+          y: { beginAtZero: true, ticks: { precision: 0 } }
+        }
+      }
+    });
+
+    chartEstado = new Chart(ctxEstado, {
+      type: "doughnut",
+      data: {
+        labels: estado.labels,
+        datasets: [{
+          data: estado.values,
+          backgroundColor: [palette.primary, palette.orange, palette.blueLight],
+          borderWidth: 1
+        }]
+      }
+    });
+
+    chartEquipo = new Chart(ctxEquipo, {
+      type: "bar",
+      data: {
+        labels: equipo.labels,
+        datasets: [{
+          label: "Cantidad total",
+          data: equipo.values,
+          backgroundColor: palette.primarySoft,
+          borderColor: palette.primary,
+          borderWidth: 2
+        }]
+      },
+      options: {
+        scales: {
+          x: { ticks: { maxRotation: 45, minRotation: 45 } },
+          y: { beginAtZero: true, ticks: { precision: 0 } }
+        }
+      }
+    });
+
+    chartFecha = new Chart(ctxFecha, {
+      type: "line",
+      data: {
+        labels: fecha.labels,
+        datasets: [{
+          label: "Cantidad",
+          data: fecha.values,
+          borderColor: palette.blue,
+          backgroundColor: palette.blueLight,
+          borderWidth: 2,
+          tension: 0.3,
+          fill: true
+        }]
+      },
+      options: {
+        scales: {
+          y: { beginAtZero: true, ticks: { precision: 0 } }
+        }
+      }
+    });
+
+    chartEquipoOperadores = new Chart(ctxEqOps, {
+      type: "bar",
+      data: {
+        labels: equipoOps.labels,
+        datasets: [{
+          label: "Operadores únicos",
+          data: equipoOps.values,
+          backgroundColor: palette.green,
+          borderColor: "#1e874b",
+          borderWidth: 2
+        }]
+      },
+      options: {
+        scales: {
+          x: { ticks: { maxRotation: 45, minRotation: 45 } },
+          y: { beginAtZero: true, ticks: { precision: 0 } }
+        }
+      }
+    });
+  }
+</script>
+
+</body>
+</html>
