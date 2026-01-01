@@ -126,11 +126,47 @@
     /* KPIs */
     .kpi-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-      gap: 12px;
-      margin-bottom: 20px;
+      gap: 8px;
+      margin-bottom: 14px;
+      /* escritorio: todas en una línea */
+      grid-template-columns: repeat(7, minmax(0, 1fr));
     }
     .kpi-card {
+      background: white;
+      padding: 8px 10px;
+      border-radius: 10px;
+      box-shadow: 0 2px 6px rgba(0,0,0,.06);
+      border-left: 4px solid #d9232d;
+      min-width: 0;
+    }
+    .kpi-title {
+      font-size: 11px;
+      color: #6b7280;
+      letter-spacing: .2px;
+      text-transform: uppercase;
+    }
+    .kpi-value {
+      font-size: 22px;
+      font-weight: 800;
+      margin-top: 2px;
+      line-height: 1.1;
+    }
+    .kpi-sub {
+      font-size: 11px;
+      color: #6b7280;
+      margin-top: 2px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    /* responsive */
+    @media (max-width: 1200px) {
+      .kpi-grid { grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); }
+    }
+    @media (max-width: 600px) {
+      .kpi-grid { grid-template-columns: 1fr; }
+    }
+.kpi-card {
       background: var(--card-bg);
       border-radius: 10px;
       padding: 10px 12px;
@@ -203,6 +239,10 @@
     .chart-card canvas {
       width: 100% !important;
       height: calc(100% - 20px) !important;
+    }
+
+    @media (min-width: 1400px) {
+      .kpi-grid { grid-template-columns: repeat(7, minmax(0, 1fr)); }
     }
 
     @media (max-width: 950px) {
@@ -307,15 +347,15 @@
       </select>
     </div>
 
+    
+
     <div class="group">
       <label for="filtro-concepto">Concepto:</label>
       <select id="filtro-concepto" onchange="aplicarFiltros()">
         <option value="TODOS">Todos</option>
       </select>
     </div>
-
-
-    <div class="right">
+<div class="right">
       <button class="btn-secondary" onclick="limpiarFiltros()">Limpiar filtros</button>
       <button class="btn-pdf" onclick="exportarPDF()">Exportar PDF</button>
     </div>
@@ -347,7 +387,7 @@
     <div class="kpi-card">
       <div class="kpi-title">Brechas cerradas</div>
       <div class="kpi-value" id="kpi-brechas-cerradas">0</div>
-      <div class="kpi-sub">Acciones correctivas cerradas</div>
+      <div class="kpi-sub">Ítems cerrados (Estado CERRADO)</div>
     </div>
 <div class="kpi-sub">Estado CERRADO</div>
     </div>
@@ -403,6 +443,10 @@
         <th>Concepto</th>
         <th>Cantidad</th>
         <th>Estado</th>
+        <th>Evaluación teórica</th>
+        <th>Seguimiento</th>
+        <th>Registro charlas</th>
+        <th>Documentación</th>
       </tr>
     </thead>
     <tbody></tbody>
@@ -413,9 +457,6 @@
   // URL CSV de la hoja publicada
   const CSV_URL =
     "https://docs.google.com/spreadsheets/d/e/2PACX-1vSMDU7-l9lRW2zs5qXHCoIn33DXxwyfV9-TApzYTF0UNzyTCE6QxsPeUl_Y9K1JIMAoOdBeShtfviPj/pub?gid=1169506111&single=true&output=csv";
-
-  // Proxy server-side para evitar CORS (recomendado en GitHub Pages)
-  const CSV_URL_PROXY = "https://api.allorigins.win/raw?url=" + encodeURIComponent(CSV_URL);
 
   let registrosBase = [];
   let registrosActuales = [];
@@ -493,7 +534,7 @@
   // Carga de datos
   async function cargarDatos(desdeAuto = false) {
     try {
-      const res  = await fetch(CSV_URL_PROXY);
+      const res  = await fetch(CSV_URL);
       const text = await res.text();
 
       // Si es recarga automática y el CSV es igual al anterior, no hacemos nada
@@ -525,7 +566,11 @@
           fecha:      c[7]  || "",
           concepto:   c[8]  || "",
           cantidad:   Number(c[9]  || 0),
-          estado:     (c[10] || "").toUpperCase()
+          estado:     (c[10] || "").toUpperCase(),
+          evaluacionTeorica: (c[11] || ""),
+          seguimiento:       (c[12] || ""),
+          registroCharlas:   (c[13] || ""),
+          documentacion:     (c[14] || "")
         }))
         .filter(r => r.concepto !== "" && (r.rut !== "" || r.nombre !== ""));
 
@@ -567,22 +612,22 @@
 
 
   function poblarFiltroConceptos(reg) {
-    const sel = document.getElementById("filtro-concepto");
-    if (!sel) return;
+    const selectConcepto = document.getElementById("filtro-concepto");
+    if (!selectConcepto) return;
 
-    const actual = sel.value || "TODOS";
-    sel.innerHTML = '<option value="TODOS">Todos</option>';
+    const valorActual = selectConcepto.value || "TODOS";
+    selectConcepto.innerHTML = '<option value="TODOS">Todos</option>';
 
     const conceptos = Array.from(new Set(reg.map(r => r.concepto || "Sin dato"))).sort();
     conceptos.forEach(c => {
-      const o = document.createElement("option");
-      o.value = c;
-      o.textContent = c;
-      sel.appendChild(o);
+      const opt = document.createElement("option");
+      opt.value = c;
+      opt.textContent = c;
+      selectConcepto.appendChild(opt);
     });
 
-    if ([...sel.options].some(o => o.value === actual)) {
-      sel.value = actual;
+    if ([...selectConcepto.options].some(o => o.value === valorActual)) {
+      selectConcepto.value = valorActual;
     }
   }
   }
@@ -593,7 +638,7 @@
     const rutBusqueda = document.getElementById("filtro-rut").value.trim();
     const estadoSel   = document.getElementById("filtro-estado").value;
     const equipoSel   = document.getElementById("filtro-equipo").value;
-    const conceptoSel = document.getElementById("filtro-concepto").value;
+    const conceptoSel = document.getElementById("filtro-concepto") ? document.getElementById("filtro-concepto").value : "TODOS";
 
     let datos = registrosBase.slice();
 
@@ -627,7 +672,8 @@
     document.getElementById("filtro-rut").value = "";
     document.getElementById("filtro-estado").value = "TODOS";
     document.getElementById("filtro-equipo").value = "TODOS";
-    document.getElementById("filtro-concepto").value = "TODOS";
+    const fc = document.getElementById("filtro-concepto");
+    if (fc) fc.value = "TODOS";
     aplicarFiltros();
   }
 
@@ -682,6 +728,10 @@
         <td>${r.concepto}</td>
         <td>${r.cantidad}</td>
         <td>${r.estado}</td>
+        <td>${r.evaluacionTeorica}</td>
+        <td>${r.seguimiento}</td>
+        <td>${r.registroCharlas}</td>
+        <td>${r.documentacion}</td>
       `;
       tbody.appendChild(tr);
     });
