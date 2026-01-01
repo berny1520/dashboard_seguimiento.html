@@ -307,6 +307,14 @@
       </select>
     </div>
 
+    <div class="group">
+      <label for="filtro-concepto">Concepto:</label>
+      <select id="filtro-concepto" onchange="aplicarFiltros()">
+        <option value="TODOS">Todos</option>
+      </select>
+    </div>
+
+
     <div class="right">
       <button class="btn-secondary" onclick="limpiarFiltros()">Limpiar filtros</button>
       <button class="btn-pdf" onclick="exportarPDF()">Exportar PDF</button>
@@ -518,6 +526,7 @@
       );
 
       poblarFiltroEquipos(registrosBase);
+      poblarFiltroConceptos(registrosBase);
       aplicarFiltros(); // respeta los filtros actuales
 
     } catch (err) {
@@ -545,6 +554,27 @@
     if ([...selectEquipo.options].some(o => o.value === valorActual)) {
       selectEquipo.value = valorActual;
     }
+
+
+  function poblarFiltroConceptos(reg) {
+    const sel = document.getElementById("filtro-concepto");
+    if (!sel) return;
+
+    const actual = sel.value || "TODOS";
+    sel.innerHTML = '<option value="TODOS">Todos</option>';
+
+    const conceptos = Array.from(new Set(reg.map(r => r.concepto || "Sin dato"))).sort();
+    conceptos.forEach(c => {
+      const o = document.createElement("option");
+      o.value = c;
+      o.textContent = c;
+      sel.appendChild(o);
+    });
+
+    if ([...sel.options].some(o => o.value === actual)) {
+      sel.value = actual;
+    }
+  }
   }
 
   function aplicarFiltros() {
@@ -553,6 +583,7 @@
     const rutBusqueda = document.getElementById("filtro-rut").value.trim();
     const estadoSel   = document.getElementById("filtro-estado").value;
     const equipoSel   = document.getElementById("filtro-equipo").value;
+    const conceptoSel = document.getElementById("filtro-concepto").value;
 
     let datos = registrosBase.slice();
 
@@ -571,6 +602,10 @@
       datos = datos.filter(r => r.equipo === equipoSel);
     }
 
+    if (conceptoSel !== "TODOS") {
+      datos = datos.filter(r => r.concepto === conceptoSel);
+    }
+
     registrosActuales = datos;
 
     actualizarKPIs(registrosActuales);
@@ -582,6 +617,7 @@
     document.getElementById("filtro-rut").value = "";
     document.getElementById("filtro-estado").value = "TODOS";
     document.getElementById("filtro-equipo").value = "TODOS";
+    document.getElementById("filtro-concepto").value = "TODOS";
     aplicarFiltros();
   }
 
