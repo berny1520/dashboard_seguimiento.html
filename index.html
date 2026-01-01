@@ -124,79 +124,36 @@
     }
 
     /* KPIs */
-    .kpi-grid {
-      display: grid;
-      gap: 8px;
-      margin-bottom: 14px;
-      /* escritorio: todas en una línea */
-      grid-template-columns: repeat(7, minmax(0, 1fr));
+    .kpi-grid{
+      display:grid;
+      grid-template-columns:repeat(auto-fit,minmax(140px,1fr));
+      gap:8px;
+      margin-bottom:14px;
     }
-    .kpi-card {
-      background: white;
-      padding: 8px 10px;
-      border-radius: 10px;
-      box-shadow: 0 2px 6px rgba(0,0,0,.06);
-      border-left: 4px solid #d9232d;
-      min-width: 0;
+    /* Si hay muchas tarjetas, en pantallas medianas permite deslizar horizontal */
+    @media (min-width: 1100px){
+      .kpi-grid{grid-template-columns:repeat(auto-fit,minmax(130px,1fr));}
     }
-    .kpi-title {
-      font-size: 11px;
-      color: #6b7280;
-      letter-spacing: .2px;
-      text-transform: uppercase;
+    @media (max-width: 1099px){
+      .kpi-grid{
+        grid-auto-flow:column;
+        grid-auto-columns:minmax(160px,1fr);
+        overflow-x:auto;
+        padding-bottom:4px;
+      }
+      .kpi-grid::-webkit-scrollbar{height:8px;}
     }
-    .kpi-value {
-      font-size: 22px;
-      font-weight: 800;
-      margin-top: 2px;
-      line-height: 1.1;
+    .kpi-card{
+      background:#fff;
+      padding:8px 10px;
+      border-radius:10px;
+      box-shadow:0 2px 6px rgba(0,0,0,.06);
+      border-left:4px solid #d9232d;
+      min-width:0;
     }
-    .kpi-sub {
-      font-size: 11px;
-      color: #6b7280;
-      margin-top: 2px;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-    /* responsive */
-    @media (max-width: 1200px) {
-      .kpi-grid { grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); }
-    }
-    @media (max-width: 600px) {
-      .kpi-grid { grid-template-columns: 1fr; }
-    }
-.kpi-card {
-      background: var(--card-bg);
-      border-radius: 10px;
-      padding: 10px 12px;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.08);
-      position: relative;
-      overflow: hidden;
-    }
-    .kpi-card::before {
-      content: "";
-      position: absolute;
-      left: 0;
-      top: 0;
-      bottom: 0;
-      width: 4px;
-      background: var(--primary);
-    }
-    .kpi-title {
-      font-size: 11px;
-      color: var(--text-muted);
-      text-transform: uppercase;
-      margin-bottom: 4px;
-    }
-    .kpi-value {
-      font-size: 21px;
-      font-weight: bold;
-    }
-    .kpi-sub {
-      font-size: 11px;
-      color: var(--text-muted);
-    }
+    .kpi-title{font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:.2px;}
+    .kpi-value{font-size:20px;font-weight:800;line-height:1.1;margin-top:2px;}
+    .kpi-sub{font-size:11px;color:#6b7280;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px;}
     .kpi-extra {
       font-size: 11px;
       color: var(--primary);
@@ -239,10 +196,6 @@
     .chart-card canvas {
       width: 100% !important;
       height: calc(100% - 20px) !important;
-    }
-
-    @media (min-width: 1400px) {
-      .kpi-grid { grid-template-columns: repeat(7, minmax(0, 1fr)); }
     }
 
     @media (max-width: 950px) {
@@ -336,6 +289,7 @@
         <option value="TODOS">Todos</option>
         <option value="CERRADO">Cerrado</option>
         <option value="PROCESO">Proceso</option>
+        <option value="APROBADO">Aprobado</option>
         <option value="SIN RESPUESTA">Sin respuesta</option>
       </select>
     </div>
@@ -384,11 +338,11 @@
       <div class="kpi-value" id="kpi-cerrados">0</div>
       
 
-    <div class="kpi-card">
-      <div class="kpi-title">Brechas cerradas</div>
-      <div class="kpi-value" id="kpi-brechas-cerradas">0</div>
-      <div class="kpi-sub">Ítems cerrados (Estado CERRADO)</div>
-    </div>
+      <div class="kpi-card">
+        <div class="kpi-title">Brechas cerradas</div>
+        <div class="kpi-value" id="kpi-brechas-cerradas">0</div>
+        <div class="kpi-sub">Ítems cerrados (Estado CERRADO)</div>
+      </div>
 <div class="kpi-sub">Estado CERRADO</div>
     </div>
     <div class="kpi-card">
@@ -638,7 +592,7 @@
     const rutBusqueda = document.getElementById("filtro-rut").value.trim();
     const estadoSel   = document.getElementById("filtro-estado").value;
     const equipoSel   = document.getElementById("filtro-equipo").value;
-    const conceptoSel = document.getElementById("filtro-concepto") ? document.getElementById("filtro-concepto").value : "TODOS";
+    const conceptoSel = (document.getElementById("filtro-concepto")||{value:"TODOS"}).value;
 
     let datos = registrosBase.slice();
 
@@ -728,10 +682,10 @@
         <td>${r.concepto}</td>
         <td>${r.cantidad}</td>
         <td>${r.estado}</td>
-        <td>${r.evaluacionTeorica}</td>
-        <td>${r.seguimiento}</td>
-        <td>${r.registroCharlas}</td>
-        <td>${r.documentacion}</td>
+        <td>${r.evaluacionTeorica || ""}</td>
+        <td>${r.seguimiento || ""}</td>
+        <td>${r.registroCharlas || ""}</td>
+        <td>${r.documentacion || ""}</td>
       `;
       tbody.appendChild(tr);
     });
