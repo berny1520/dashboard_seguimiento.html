@@ -308,6 +308,14 @@
       </select>
     </div>
 
+
+    <div class="group">
+      <label for="filtro-concepto">Concepto:</label>
+      <select id="filtro-concepto" onchange="aplicarFiltros()">
+        <option value="TODOS">Todos</option>
+      </select>
+    </div>
+
     <div class="right">
       <button class="btn-secondary" onclick="limpiarFiltros()">Limpiar filtros</button>
       <button class="btn-pdf" onclick="exportarPDF()">Exportar PDF</button>
@@ -336,6 +344,12 @@
       <div class="kpi-extra" id="kpi-cerrados-pct">0%</div>
       <div class="kpi-value" id="kpi-cerrados">0</div>
       <div class="kpi-sub">Estado CERRADO</div>
+    </div>
+
+    <div class="kpi-card">
+      <div class="kpi-title">Brechas cerradas</div>
+      <div class="kpi-value" id="kpi-brechas-cerradas">0</div>
+      <div class="kpi-sub">Acciones correctivas cerradas</div>
     </div>
     <div class="kpi-card">
       <div class="kpi-title">En proceso</div>
@@ -396,11 +410,14 @@
 </div>
 
 <script>
-  // URL CSV de la hoja publicada
-  const CSV_URL =
+    // URL CSV de la hoja publicada (directo)
+  const CSV_URL_DIRECT =
     "https://docs.google.com/spreadsheets/d/e/2PACX-1vSMDU7-l9lRW2zs5qXHCoIn33DXxwyfV9-TApzYTF0UNzyTCE6QxsPeUl_Y9K1JIMAoOdBeShtfviPj/pub?gid=1169506111&single=true&output=csv";
 
-  let registrosBase = [];
+  // Fallback SIN Apps Script (proxy público) para evitar bloqueos CORS desde GitHub Pages
+  const CSV_URL_PROXY =
+    "https://api.allorigins.win/raw?url=" + encodeURIComponent(CSV_URL_DIRECT);
+let registrosBase = [];
   let registrosActuales = [];
 
   let chartConcepto, chartEstado, chartEquipo, chartFecha, chartEquipoOperadores;
@@ -476,7 +493,16 @@
   // Carga de datos
   async function cargarDatos(desdeAuto = false) {
     try {
-      const res  = await fetch(CSV_URL);
+      // 1) Intento DIRECTO (puede fallar por CORS en GitHub Pages)
+      let res;
+      try {
+        res = await fetch(CSV_URL_DIRECT + "&_ts=" + Date.now(), { cache: "no-store" });
+        if (!res.ok) throw new Error("HTTP " + res.status);
+      } catch (e) {
+        // 2) Fallback PROXY (sin Apps Script)
+        res = await fetch(CSV_URL_PROXY + "&_ts=" + Date.now(), { cache: "no-store" });
+      }
+
       const text = await res.text();
 
       // Si es recarga automática y el CSV es igual al anterior, no hacemos nada
@@ -519,12 +545,14 @@
       );
 
       poblarFiltroEquipos(registrosBase);
+      poblarFiltroConceptos(registrosBase);
+      poblarFiltroConceptoss(registrosBase);
       aplicarFiltros(); // respeta los filtros actuales
 
     } catch (err) {
       console.error("Error cargando datos:", err);
       if (!desdeAuto) {
-        alert("No se pudo leer la base desde Google Sheets.");
+        alert("No se pudo leer la base (bloqueo CORS o enlace CSV no accesible). Revisa F12 > Console.");
       }
     }
   }
@@ -546,6 +574,33 @@
     if ([...selectEquipo.options].some(o => o.value === valorActual)) {
       selectEquipo.value = valorActual;
     }
+
+
+  // Alias de compatibilidad: si alguna versión llama poblarFiltroConceptos() (sin s)
+  function poblarFiltroConceptos(reg) {
+    return poblarFiltroConceptos(reg);
+  }
+
+
+  function poblarFiltroConceptoss(reg) {
+    const selectConcepto = document.getElementById("filtro-concepto");
+    if (!selectConcepto) return;
+
+    const valorActual = selectConcepto.value || "TODOS";
+
+    selectConcepto.innerHTML = '<option value="TODOS">Todos</option>';
+    const conceptos = Array.from(new Set(reg.map(r => r.concepto || "Sin dato"))).sort();
+    conceptos.forEach(c => {
+      const opt = document.createElement("option");
+      opt.value = c;
+      opt.textContent = c;
+      selectConcepto.appendChild(opt);
+    });
+
+    if ([...selectConcepto.options].some(o => o.value === valorActual)) {
+      selectConcepto.value = valorActual;
+    }
+  }
   }
 
   function aplicarFiltros() {
@@ -554,6 +609,7 @@
     const rutBusqueda = document.getElementById("filtro-rut").value.trim();
     const estadoSel   = document.getElementById("filtro-estado").value;
     const equipoSel   = document.getElementById("filtro-equipo").value;
+    const conceptoSel = document.getElementById("filtro-concepto") ? document.getElementById("filtro-concepto").value : "TODOS";
 
     let datos = registrosBase.slice();
 
@@ -572,6 +628,10 @@
       datos = datos.filter(r => r.equipo === equipoSel);
     }
 
+    if (conceptoSel !== "TODOS") {
+      datos = datos.filter(r => r.concepto === conceptoSel);
+    }
+
     registrosActuales = datos;
 
     actualizarKPIs(registrosActuales);
@@ -583,6 +643,7 @@
     document.getElementById("filtro-rut").value = "";
     document.getElementById("filtro-estado").value = "TODOS";
     document.getElementById("filtro-equipo").value = "TODOS";
+    if (document.getElementById("filtro-concepto")) document.getElementById("filtro-concepto").value = "TODOS";
     aplicarFiltros();
   }
 
@@ -601,6 +662,8 @@
     const proceso       = setEstado("PROCESO");
     const sinRespuesta  = setEstado("SIN RESPUESTA");
 
+    const brechasCerradas = cerrados; // Brecha cerrada = Estado CERRADO
+
     const operadoresUnicos = new Set(reg.map(r => r.rut || r.nombre)).size;
 
     const pct = n => total ? ((n / total) * 100).toFixed(1) + "%" : "0%";
@@ -612,6 +675,9 @@
     document.getElementById("kpi-cerrados").textContent          = cerrados;
     document.getElementById("kpi-proceso").textContent           = proceso;
     document.getElementById("kpi-sin-respuesta").textContent     = sinRespuesta;
+
+    const elBrechas = document.getElementById("kpi-brechas-cerradas");
+    if (elBrechas) elBrechas.textContent = brechasCerradas;
 
     document.getElementById("kpi-cerrados-pct").textContent      = pct(cerrados);
     document.getElementById("kpi-proceso-pct").textContent       = pct(proceso);
