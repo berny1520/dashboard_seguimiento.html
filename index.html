@@ -342,7 +342,14 @@
       <div class="kpi-title">Cerrados</div>
       <div class="kpi-extra" id="kpi-cerrados-pct">0%</div>
       <div class="kpi-value" id="kpi-cerrados">0</div>
-      <div class="kpi-sub">Estado CERRADO</div>
+      
+
+    <div class="kpi-card">
+      <div class="kpi-title">Brechas cerradas</div>
+      <div class="kpi-value" id="kpi-brechas-cerradas">0</div>
+      <div class="kpi-sub">Acciones correctivas cerradas</div>
+    </div>
+<div class="kpi-sub">Estado CERRADO</div>
     </div>
     <div class="kpi-card">
       <div class="kpi-title">En proceso</div>
@@ -406,6 +413,9 @@
   // URL CSV de la hoja publicada
   const CSV_URL =
     "https://docs.google.com/spreadsheets/d/e/2PACX-1vSMDU7-l9lRW2zs5qXHCoIn33DXxwyfV9-TApzYTF0UNzyTCE6QxsPeUl_Y9K1JIMAoOdBeShtfviPj/pub?gid=1169506111&single=true&output=csv";
+
+  // Proxy server-side para evitar CORS (recomendado en GitHub Pages)
+  const CSV_URL_PROXY = "https://api.allorigins.win/raw?url=" + encodeURIComponent(CSV_URL);
 
   let registrosBase = [];
   let registrosActuales = [];
@@ -483,7 +493,7 @@
   // Carga de datos
   async function cargarDatos(desdeAuto = false) {
     try {
-      const res  = await fetch(CSV_URL);
+      const res  = await fetch(CSV_URL_PROXY);
       const text = await res.text();
 
       // Si es recarga automática y el CSV es igual al anterior, no hacemos nada
@@ -645,6 +655,9 @@
     document.getElementById("kpi-operadores-unicos").textContent = operadoresUnicos;
 
     document.getElementById("kpi-cerrados").textContent          = cerrados;
+
+    const kb = document.getElementById("kpi-brechas-cerradas");
+    if (kb) kb.textContent = cerrados;
     document.getElementById("kpi-proceso").textContent           = proceso;
     document.getElementById("kpi-sin-respuesta").textContent     = sinRespuesta;
 
